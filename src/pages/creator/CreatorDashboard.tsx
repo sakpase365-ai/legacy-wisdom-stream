@@ -128,7 +128,7 @@ export default function CreatorDashboard() {
         </div>
         <div className="flex gap-3">
           <Link to="/creator/recipients">
-            <Button variant="outline" className="gap-2 text-white hover:bg-white/10 border-muted">
+            <Button className="gap-2 bg-amber-100 text-amber-950 hover:bg-amber-200">
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">Recipients</span>
             </Button>
