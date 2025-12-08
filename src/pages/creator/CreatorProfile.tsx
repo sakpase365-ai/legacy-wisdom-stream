@@ -392,7 +392,7 @@ const CreatorProfile = () => {
                     disabled={(date) => date > new Date()}
                     initialFocus
                     className="p-3 pointer-events-auto"
-                    captionLayout="dropdown-buttons"
+                    captionLayout="dropdown"
                     fromYear={1920}
                     toYear={new Date().getFullYear()}
                   />
@@ -549,7 +549,7 @@ const CreatorProfile = () => {
                         disabled={(date) => date > new Date()}
                         initialFocus
                         className="p-3 pointer-events-auto"
-                        captionLayout="dropdown-buttons"
+                        captionLayout="dropdown"
                         fromYear={1920}
                         toYear={new Date().getFullYear()}
                       />
