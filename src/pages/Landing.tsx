@@ -15,7 +15,7 @@ const Landing = () => {
       />
       
       {/* Dark Overlay - darker at top, fading toward middle */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/70 to-black/50" />
       
       {/* Content */}
       <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-12 text-center">

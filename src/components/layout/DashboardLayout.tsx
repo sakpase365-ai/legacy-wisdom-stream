@@ -37,7 +37,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       />
       
       {/* Dark Overlay */}
-      <div className="fixed inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/20" />
+      <div className="fixed inset-0 bg-gradient-to-b from-black/85 via-black/70 to-black/50" />
       
       {/* Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
