@@ -7,6 +7,7 @@ import Landing from "./pages/Landing";
 import GetStarted from "./pages/GetStarted";
 import Auth from "./pages/Auth";
 import CreatorDashboard from "./pages/creator/CreatorDashboard";
+import CreatorProfile from "./pages/creator/CreatorProfile";
 import ManageRecipients from "./pages/creator/ManageRecipients";
 import CreateBreadcrumb from "./pages/creator/CreateBreadcrumb";
 import RecipientHome from "./pages/recipient/RecipientHome";
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/get-started" element={<GetStarted />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/creator" element={<CreatorDashboard />} />
+          <Route path="/creator/profile" element={<CreatorProfile />} />
           <Route path="/creator/recipients" element={<ManageRecipients />} />
           <Route path="/creator/create" element={<CreateBreadcrumb />} />
           <Route path="/recipient" element={<RecipientHome />} />

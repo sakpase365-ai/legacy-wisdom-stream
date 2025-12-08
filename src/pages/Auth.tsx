@@ -143,7 +143,7 @@ const Auth = () => {
           });
 
           if (userRole === "creator") {
-            navigate("/creator");
+            navigate("/creator/profile");
           } else {
             navigate("/recipient");
           }
