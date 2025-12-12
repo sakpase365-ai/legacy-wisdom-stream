@@ -1,18 +1,13 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import landingBg from "@/assets/landing-bg.jpg";
-
 const Landing = () => {
-  return (
-    <div className="relative min-h-screen w-full overflow-hidden">
+  return <div className="relative min-h-screen w-full overflow-hidden">
       {/* Background Image */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ 
-          backgroundImage: `url(${landingBg})`,
-          backgroundPosition: 'center bottom'
-        }}
-      />
+      <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{
+      backgroundImage: `url(${landingBg})`,
+      backgroundPosition: 'center bottom'
+    }} />
       
       {/* Dark Overlay - darker at top, fading toward middle */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/70 to-black/50" />
@@ -36,9 +31,8 @@ const Landing = () => {
             <br />
             Breadcrumbs looks forward — it preserves what still is and allows it to keep speaking.
           </p>
-          <p>
-            That means your son, daughter, or loved one isn't just remembering you.
-            <br />
+          <p>That means your spouse, children, grandchildren or loved one isn't just remembering you.
+They're interacting with your voice, your words, and your perspective in a way that feels alive.<br />
             They're interacting with your voice, your words, and your perspective in a way that feels alive.
           </p>
         </div>
@@ -50,16 +44,11 @@ const Landing = () => {
         
         {/* Primary button */}
         <Link to="/get-started">
-          <Button 
-            className="bg-amber-100 px-8 py-3 text-base font-medium text-amber-950 hover:bg-amber-200"
-            size="lg"
-          >
+          <Button className="bg-amber-100 px-8 py-3 text-base font-medium text-amber-950 hover:bg-amber-200" size="lg">
             Get Started
           </Button>
         </Link>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Landing;
