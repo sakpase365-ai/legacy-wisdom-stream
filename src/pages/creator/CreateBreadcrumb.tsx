@@ -59,7 +59,7 @@ export default function CreateBreadcrumb() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
 
   const [formData, setFormData] = useState({
-    recipient_id: "",
+    recipient_id: "", // Can be a specific ID or "__all__" for all family members
     topic_id: "",
     title: "",
     content_type: "text" as ContentType,
@@ -115,10 +115,10 @@ export default function CreateBreadcrumb() {
     }
   };
 
-  // Check for duplicates when title or recipient changes
+  // Check for duplicates when title or recipient changes (skip for "All Family")
   useEffect(() => {
     const checkDuplicate = async () => {
-      if (!profile || !formData.title || !formData.recipient_id) {
+      if (!profile || !formData.title || !formData.recipient_id || formData.recipient_id === "__all__") {
         setDuplicateWarning(null);
         return;
       }
@@ -277,9 +277,15 @@ export default function CreateBreadcrumb() {
         ? "scripture" 
         : formData.content_type;
 
-      const { error } = await supabase.from("breadcrumbs").insert({
+      // Determine which recipients to create breadcrumbs for
+      const targetRecipientIds = formData.recipient_id === "__all__"
+        ? recipients.map(r => r.id)
+        : [formData.recipient_id];
+
+      // Create breadcrumb(s) for each recipient
+      const breadcrumbsToInsert = targetRecipientIds.map(recipientId => ({
         creator_id: profile.id,
-        recipient_id: formData.recipient_id,
+        recipient_id: recipientId,
         topic_id: formData.topic_id || null,
         title: formData.title.trim(),
         content_type: contentType,
@@ -290,13 +296,18 @@ export default function CreateBreadcrumb() {
         scripture_text: formData.scripture_text || null,
         include_commentary: formData.include_commentary,
         commentary_text: formData.commentary_text || null,
-      });
+      }));
+
+      const { error } = await supabase.from("breadcrumbs").insert(breadcrumbsToInsert);
 
       if (error) throw error;
 
+      const recipientCount = targetRecipientIds.length;
       toast({
-        title: "Breadcrumb created",
-        description: "Your wisdom has been saved.",
+        title: recipientCount > 1 ? "Breadcrumbs created" : "Breadcrumb created",
+        description: recipientCount > 1 
+          ? `Your wisdom has been saved for ${recipientCount} family members.`
+          : "Your wisdom has been saved.",
       });
 
       navigate("/creator");
@@ -395,6 +406,11 @@ export default function CreateBreadcrumb() {
                 <SelectValue placeholder="Select a recipient" />
               </SelectTrigger>
               <SelectContent>
+                {recipients.length > 1 && (
+                  <SelectItem value="__all__" className="font-medium">
+                    All Family Members
+                  </SelectItem>
+                )}
                 {recipients.map((r) => (
                   <SelectItem key={r.id} value={r.id}>
                     {r.display_name}
