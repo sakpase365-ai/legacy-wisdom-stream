@@ -498,7 +498,7 @@ const CreatorProfile = () => {
                     <SelectTrigger className="bg-white/10 border-white/20 text-white">
                       <SelectValue placeholder="Select relationship" />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border max-h-60">
+                    <SelectContent className="bg-neutral-900 border-white/20 max-h-60">
                       {RELATIONSHIP_OPTIONS.map((rel) => (
                         <SelectItem key={rel} value={rel}>
                           {rel}
