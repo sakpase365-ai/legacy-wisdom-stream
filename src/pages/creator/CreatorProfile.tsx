@@ -578,9 +578,8 @@ const CreatorProfile = () => {
           {/* Add Button */}
           {!showAddForm && (
             <Button
-              variant="outline"
               onClick={handleAddMember}
-              className="w-full border-white/20 text-white hover:bg-white/10"
+              className="w-full bg-amber-100 text-amber-950 hover:bg-amber-200"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add family member
