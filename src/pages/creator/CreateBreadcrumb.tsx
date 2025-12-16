@@ -50,6 +50,7 @@ export default function CreateBreadcrumb() {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [familyId, setFamilyId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -90,10 +91,11 @@ export default function CreateBreadcrumb() {
   const fetchData = async () => {
     if (!profile) return;
     try {
-      const [recipientsRes, categoriesRes, topicsRes] = await Promise.all([
+      const [recipientsRes, categoriesRes, topicsRes, familyRes] = await Promise.all([
         supabase.from("recipients").select("id, display_name").eq("creator_id", profile.id),
         supabase.from("categories").select("id, name, sort_order").eq("is_active", true).order("sort_order"),
-        supabase.from("topics").select("id, name, category_id, sort_order").eq("is_active", true).order("sort_order")
+        supabase.from("topics").select("id, name, category_id, sort_order").eq("is_active", true).order("sort_order"),
+        supabase.from("family_members").select("family_id").eq("user_id", profile.user_id).maybeSingle()
       ]);
 
       if (recipientsRes.error) throw recipientsRes.error;
@@ -103,6 +105,10 @@ export default function CreateBreadcrumb() {
       setRecipients(recipientsRes.data || []);
       setCategories(categoriesRes.data || []);
       setTopics(topicsRes.data || []);
+      
+      if (familyRes.data) {
+        setFamilyId(familyRes.data.family_id);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -254,6 +260,8 @@ export default function CreateBreadcrumb() {
         creator_id: profile.id,
         recipient_id: recipientId,
         topic_id: selectedTopicId,
+        family_id: familyId,
+        visibility: "family" as const,
         title: formData.title.trim(),
         content_type: formData.content_type,
         text_body: formData.text_body || null,
