@@ -82,6 +82,8 @@ const CreatorProfile = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [creatorName, setCreatorName] = useState("");
   const [creatorDob, setCreatorDob] = useState<Date | null>(null);
+  const [familyName, setFamilyName] = useState("");
+  const [existingFamilyId, setExistingFamilyId] = useState<string | null>(null);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -97,8 +99,29 @@ const CreatorProfile = () => {
       setCreatorName(profile.name || "");
       loadCreatorProfile();
       loadFamilyMembers();
+      loadExistingFamily();
     }
   }, [profile]);
+
+  const loadExistingFamily = async () => {
+    if (!profile) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("family_members")
+        .select("family_id, families(name)")
+        .eq("user_id", profile.user_id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (data) {
+        setExistingFamilyId(data.family_id);
+        setFamilyName((data.families as any)?.name || "");
+      }
+    } catch (error) {
+      console.error("Error loading family:", error);
+    }
+  };
 
   const loadCreatorProfile = async () => {
     if (!profile) return;
@@ -277,7 +300,39 @@ const CreatorProfile = () => {
 
       if (profileError) throw profileError;
 
-      // Save family members
+      // Create or update family
+      let familyId = existingFamilyId;
+      
+      if (!familyId) {
+        // Create new family
+        const { data: newFamily, error: familyError } = await supabase
+          .from("families")
+          .insert({ name: familyName.trim() || `${creatorName.trim()}'s Family` })
+          .select("id")
+          .single();
+
+        if (familyError) throw familyError;
+        familyId = newFamily.id;
+
+        // Add creator as family owner
+        const { error: memberError } = await supabase
+          .from("family_members")
+          .insert({
+            family_id: familyId,
+            user_id: profile.user_id,
+            role: "owner",
+          });
+
+        if (memberError) throw memberError;
+      } else if (familyName.trim()) {
+        // Update existing family name
+        await supabase
+          .from("families")
+          .update({ name: familyName.trim() })
+          .eq("id", familyId);
+      }
+
+      // Save family members (recipients)
       for (const member of familyMembers) {
         const relationship = member.relationship === "Other" 
           ? member.custom_relationship || "Other" 
@@ -310,7 +365,7 @@ const CreatorProfile = () => {
 
       toast({
         title: "Profile saved!",
-        description: "Your profile and family members have been saved.",
+        description: "Your profile and family have been set up.",
       });
 
       navigate("/creator");
@@ -402,13 +457,36 @@ const CreatorProfile = () => {
           </div>
         </div>
 
+        {/* Your Family Section */}
+        <div className="p-6 md:p-8 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10 mb-6">
+          <h2 className="text-lg font-serif font-medium text-white mb-2">
+            Your Family
+          </h2>
+          <p className="text-white/50 text-sm mb-6">
+            Give your family a name. This helps organize all breadcrumbs shared within your family.
+          </p>
+
+          <div className="space-y-2">
+            <Label htmlFor="familyName" className="text-white/80">
+              Family Name
+            </Label>
+            <Input
+              id="familyName"
+              placeholder={`e.g., ${creatorName.trim() || "The Smith"}'s Family`}
+              value={familyName}
+              onChange={(e) => setFamilyName(e.target.value)}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/40"
+            />
+          </div>
+        </div>
+
         {/* Family Members Section */}
         <div className="p-6 md:p-8 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10 mb-6">
           <h2 className="text-lg font-serif font-medium text-white mb-2">
             Family members
           </h2>
           <p className="text-white/50 text-sm mb-6">
-            Add the people you want Breadcrumbs to keep speaking to.
+            Add the people you want to leave Breadcrumbs for.
           </p>
 
           {/* Family Members List */}
