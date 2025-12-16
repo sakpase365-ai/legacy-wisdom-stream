@@ -48,6 +48,17 @@ interface RecipientRecord {
   creator_id: string;
 }
 
+interface AISource {
+  id: string;
+  title: string;
+}
+
+interface AIResponse {
+  answer: string;
+  sources: AISource[];
+  follow_up_questions: string[];
+}
+
 export default function RecipientHome() {
   const { profile, user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -61,7 +72,7 @@ export default function RecipientHome() {
   const [scripturesOnly, setScripturesOnly] = useState(false);
 
   const [question, setQuestion] = useState("");
-  const [aiAnswer, setAiAnswer] = useState("");
+  const [aiResponse, setAiResponse] = useState<AIResponse | null>(null);
   const [isAsking, setIsAsking] = useState(false);
 
   useEffect(() => {
@@ -136,35 +147,46 @@ export default function RecipientHome() {
     if (!question.trim() || !recipientRecord) return;
 
     setIsAsking(true);
-    setAiAnswer("");
+    setAiResponse(null);
 
     try {
       const response = await supabase.functions.invoke("ask-breadcrumbs", {
         body: {
           question: question.trim(),
           recipientId: recipientRecord.id,
+          userRole: "recipient",
         },
       });
 
       if (response.error) throw response.error;
 
-      setAiAnswer(response.data?.answer || "I couldn't find an answer in the breadcrumbs left for you.");
+      const data = response.data as AIResponse;
+      setAiResponse({
+        answer: data?.answer || "I couldn't find an answer in the breadcrumbs left for you.",
+        sources: data?.sources || [],
+        follow_up_questions: data?.follow_up_questions || [],
+      });
 
       await supabase.from("questions").insert({
         recipient_id: recipientRecord.id,
         question_text: question.trim(),
-        ai_answer_text: response.data?.answer || null,
+        ai_answer_text: data?.answer || null,
       });
     } catch (error: any) {
       console.error("Error asking question:", error);
+      const errorMessage = error?.message || "Failed to get an answer. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to get an answer. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsAsking(false);
     }
+  };
+
+  const handleFollowUpClick = (followUp: string) => {
+    setQuestion(followUp);
   };
 
   const filteredBreadcrumbs = breadcrumbs.filter((b) => {
@@ -265,12 +287,51 @@ export default function RecipientHome() {
                 </Button>
               </div>
 
-              {aiAnswer && (
-                <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-                  <p className="text-sm font-medium text-white mb-2">Answer:</p>
-                  <p className="text-sm text-white/80 whitespace-pre-wrap">
-                    {aiAnswer}
-                  </p>
+              {aiResponse && (
+                <div className="space-y-4">
+                  {/* Answer */}
+                  <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+                    <p className="text-sm font-medium text-white mb-2">Answer:</p>
+                    <p className="text-sm text-white/80 whitespace-pre-wrap">
+                      {aiResponse.answer}
+                    </p>
+                  </div>
+
+                  {/* Sources */}
+                  {aiResponse.sources.length > 0 && (
+                    <div className="p-3 rounded-lg bg-amber-100/10 border border-amber-100/20">
+                      <p className="text-xs font-medium text-amber-100 mb-2">Sources used:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {aiResponse.sources.map((source) => (
+                          <Link
+                            key={source.id}
+                            to={`/breadcrumb/${source.id}`}
+                            className="text-xs px-2 py-1 rounded bg-amber-100/20 text-amber-100 hover:bg-amber-100/30 transition-colors"
+                          >
+                            {source.title}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Follow-up Questions */}
+                  {aiResponse.follow_up_questions.length > 0 && (
+                    <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+                      <p className="text-xs font-medium text-white/60 mb-2">You might also ask:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {aiResponse.follow_up_questions.map((followUp, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleFollowUpClick(followUp)}
+                            className="text-xs px-2 py-1 rounded bg-white/10 text-white/80 hover:bg-white/20 transition-colors text-left"
+                          >
+                            {followUp}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
