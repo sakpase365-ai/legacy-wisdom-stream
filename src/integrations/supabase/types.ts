@@ -99,6 +99,30 @@ export type Database = {
           },
         ]
       }
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -207,32 +231,38 @@ export type Database = {
       }
       topics: {
         Row: {
+          category_id: string
           created_at: string
-          creator_id: string
           description: string | null
           id: string
+          is_active: boolean
           name: string
+          sort_order: number
         }
         Insert: {
+          category_id: string
           created_at?: string
-          creator_id: string
           description?: string | null
           id?: string
+          is_active?: boolean
           name: string
+          sort_order: number
         }
         Update: {
+          category_id?: string
           created_at?: string
-          creator_id?: string
           description?: string | null
           id?: string
+          is_active?: boolean
           name?: string
+          sort_order?: number
         }
         Relationships: [
           {
-            foreignKeyName: "topics_creator_id_fkey"
-            columns: ["creator_id"]
+            foreignKeyName: "topics_category_id_fkey"
+            columns: ["category_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "categories"
             referencedColumns: ["id"]
           },
         ]

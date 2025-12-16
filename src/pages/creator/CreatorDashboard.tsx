@@ -88,7 +88,7 @@ export default function CreatorDashboard() {
       const {
         data: topicsData,
         error: topicsError
-      } = await supabase.from("topics").select("id, name").eq("creator_id", profile.id);
+      } = await supabase.from("topics").select("id, name").eq("is_active", true).order("sort_order");
       if (topicsError) throw topicsError;
       setBreadcrumbs(breadcrumbsData as any || []);
       setRecipients(recipientsData || []);
