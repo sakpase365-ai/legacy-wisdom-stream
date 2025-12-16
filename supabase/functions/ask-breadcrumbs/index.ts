@@ -9,11 +9,14 @@ const corsHeaders = {
 interface BreadcrumbContext {
   id: string;
   title: string;
-  topic_name: string | null;
-  content: string | null;
+  category: string | null;
+  topic: string | null;
+  breadcrumb_text: string | null;
   commentary_text: string | null;
   scripture_reference: string | null;
   scripture_text: string | null;
+  recipient_id: string | null;
+  visibility: string;
   created_at: string;
 }
 
@@ -23,7 +26,7 @@ serve(async (req) => {
   }
 
   try {
-    const { question, recipientId, creatorId, userRole } = await req.json();
+    const { question, familyId, recipientId, creatorId, userRole, userId } = await req.json();
 
     if (!question) {
       return new Response(JSON.stringify({ error: "Question is required" }), {
@@ -41,29 +44,86 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch breadcrumbs based on user role
-    let breadcrumbsQuery = supabase
-      .from("breadcrumbs")
-      .select(`
-        id,
-        title,
-        text_body,
-        commentary_text,
-        scripture_reference,
-        scripture_text,
-        created_at,
-        topic:topics(name)
-      `)
-      .order("created_at", { ascending: false })
-      .limit(20);
+    let breadcrumbsData: any[] = [];
 
-    if (userRole === "recipient" && recipientId) {
-      breadcrumbsQuery = breadcrumbsQuery.eq("recipient_id", recipientId);
+    // Family-scoped access: fetch all breadcrumbs in the family
+    if (familyId) {
+      console.log("Fetching family-scoped breadcrumbs for family:", familyId);
+      
+      const { data, error } = await supabase
+        .from("breadcrumbs")
+        .select(`
+          id,
+          title,
+          text_body,
+          commentary_text,
+          scripture_reference,
+          scripture_text,
+          created_at,
+          recipient_id,
+          visibility,
+          family_id,
+          topic:topics(name, category:categories(name))
+        `)
+        .eq("family_id", familyId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.error("Database error fetching family breadcrumbs:", error);
+        throw new Error("Failed to fetch breadcrumbs");
+      }
+
+      // Filter: only include family-visible OR recipient_only if this user is the recipient
+      breadcrumbsData = (data || []).filter((b: any) => {
+        if (b.visibility === "family") return true;
+        if (b.visibility === "recipient_only" && recipientId && b.recipient_id === recipientId) return true;
+        return false;
+      });
+    } 
+    // Fallback to old recipient/creator based access
+    else if (userRole === "recipient" && recipientId) {
+      const { data, error } = await supabase
+        .from("breadcrumbs")
+        .select(`
+          id,
+          title,
+          text_body,
+          commentary_text,
+          scripture_reference,
+          scripture_text,
+          created_at,
+          recipient_id,
+          visibility,
+          topic:topics(name, category:categories(name))
+        `)
+        .eq("recipient_id", recipientId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (error) throw new Error("Failed to fetch breadcrumbs");
+      breadcrumbsData = data || [];
     } else if (userRole === "creator" && creatorId) {
-      breadcrumbsQuery = breadcrumbsQuery.eq("creator_id", creatorId);
-    } else if (recipientId) {
-      // Default to recipient if recipientId is provided
-      breadcrumbsQuery = breadcrumbsQuery.eq("recipient_id", recipientId);
+      const { data, error } = await supabase
+        .from("breadcrumbs")
+        .select(`
+          id,
+          title,
+          text_body,
+          commentary_text,
+          scripture_reference,
+          scripture_text,
+          created_at,
+          recipient_id,
+          visibility,
+          topic:topics(name, category:categories(name))
+        `)
+        .eq("creator_id", creatorId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (error) throw new Error("Failed to fetch breadcrumbs");
+      breadcrumbsData = data || [];
     } else {
       return new Response(JSON.stringify({ error: "User context is required" }), {
         status: 400,
@@ -71,17 +131,12 @@ serve(async (req) => {
       });
     }
 
-    const { data: breadcrumbs, error: dbError } = await breadcrumbsQuery;
+    console.log(`Found ${breadcrumbsData.length} breadcrumbs for context`);
 
-    if (dbError) {
-      console.error("Database error:", dbError);
-      throw new Error("Failed to fetch breadcrumbs");
-    }
-
-    if (!breadcrumbs || breadcrumbs.length === 0) {
+    if (breadcrumbsData.length === 0) {
       return new Response(JSON.stringify({
-        answer: "I don't have any breadcrumbs to search through yet. Once your loved ones leave some wisdom for you, I'll be able to help answer your questions!",
-        sources: [],
+        answer: "I don't have any breadcrumbs to search through yet. Once your loved ones leave some wisdom, I'll be able to help answer your questions!",
+        sources_used: [],
         follow_up_questions: [],
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -89,21 +144,25 @@ serve(async (req) => {
     }
 
     // Format breadcrumbs for context
-    const breadcrumbsContext: BreadcrumbContext[] = breadcrumbs.map((b: any) => ({
+    const breadcrumbsContext: BreadcrumbContext[] = breadcrumbsData.map((b: any) => ({
       id: b.id,
       title: b.title,
-      topic_name: b.topic?.name || null,
-      content: b.text_body,
+      category: b.topic?.category?.name || null,
+      topic: b.topic?.name || null,
+      breadcrumb_text: b.text_body,
       commentary_text: b.commentary_text,
       scripture_reference: b.scripture_reference,
       scripture_text: b.scripture_text,
+      recipient_id: b.recipient_id,
+      visibility: b.visibility || "family",
       created_at: b.created_at,
     }));
 
     const contextText = breadcrumbsContext.map((b, i) => {
       let text = `[Breadcrumb ${i + 1}]\nID: ${b.id}\nTitle: "${b.title}"`;
-      if (b.topic_name) text += `\nTopic: ${b.topic_name}`;
-      if (b.content) text += `\nContent: ${b.content}`;
+      if (b.category) text += `\nCategory: ${b.category}`;
+      if (b.topic) text += `\nTopic: ${b.topic}`;
+      if (b.breadcrumb_text) text += `\nContent: ${b.breadcrumb_text}`;
       if (b.scripture_reference) text += `\nScripture Reference: ${b.scripture_reference}`;
       if (b.scripture_text) text += `\nScripture Text: ${b.scripture_text}`;
       if (b.commentary_text) text += `\nCommentary: ${b.commentary_text}`;
@@ -111,15 +170,18 @@ serve(async (req) => {
       return text;
     }).join("\n\n");
 
-    const systemPrompt = `You are the "Breadcrumbs Answer Agent" - a helpful assistant that answers questions based ONLY on the wisdom and messages (called "Breadcrumbs") that have been left for the user.
+    const systemPrompt = `You are "Breadcrumbs AI (Family-Scoped)" - a helpful assistant that answers questions based ONLY on the wisdom and messages (called "Breadcrumbs") that have been left within the user's family ecosystem.
 
-CRITICAL RULES:
-1. Use ONLY the provided Breadcrumbs context below. Do NOT use any external knowledge or make up information.
-2. If the Breadcrumbs do not contain enough information to answer the question, say: "I don't have enough Breadcrumbs to answer that." Then ask 1-2 clarifying questions to help the user refine their question.
-3. Keep answers concise and practical.
-4. After your answer, ALWAYS include a "Sources used" section listing the breadcrumb titles you referenced.
-5. Do NOT invent quotes or claim a breadcrumb exists if it was not provided in the context.
-6. If you reference a breadcrumb, use its exact title.
+NON-NEGOTIABLE RULES:
+1. You may ONLY use the Breadcrumbs provided to you in the context below. Do NOT use external knowledge, assumptions, or information not present in the Breadcrumbs.
+2. If you include Scripture, copy it EXACTLY as it appears in the Breadcrumbs. Do not paraphrase Scripture.
+3. Preserve the creator's voice and tone. Prefer direct quotes from Breadcrumbs when possible.
+4. If the provided Breadcrumbs do not contain enough information to answer, say: "I don't have enough Breadcrumbs to answer that." Then ask 1-2 clarifying questions such as:
+   - "Which topic is this about (Money, Family & Relationships, Personal Growth, etc.)?"
+   - "Do you want the answer to include the exact Scriptures already stored in your Breadcrumbs?"
+5. Keep answers concise and practical.
+6. After your answer, ALWAYS reference the breadcrumb titles you used.
+7. Do NOT invent quotes or claim a breadcrumb exists if it was not provided in the context.
 
 AVAILABLE BREADCRUMBS CONTEXT:
 ${contextText}`;
@@ -148,9 +210,9 @@ ${contextText}`;
                 properties: {
                   answer: {
                     type: "string",
-                    description: "The answer to the question based on the Breadcrumbs context. Include the Sources used section at the end.",
+                    description: "The answer to the question based on the Breadcrumbs context.",
                   },
-                  sources: {
+                  sources_used: {
                     type: "array",
                     description: "List of breadcrumbs used to form the answer",
                     items: {
@@ -164,11 +226,11 @@ ${contextText}`;
                   },
                   follow_up_questions: {
                     type: "array",
-                    description: "Optional follow-up questions the user might want to ask",
+                    description: "Optional follow-up questions if insufficient info, or suggested next questions",
                     items: { type: "string" },
                   },
                 },
-                required: ["answer", "sources"],
+                required: ["answer", "sources_used"],
               },
             },
           },
@@ -204,7 +266,7 @@ ${contextText}`;
       const result = JSON.parse(toolCall.function.arguments);
       return new Response(JSON.stringify({
         answer: result.answer,
-        sources: result.sources || [],
+        sources_used: result.sources_used || [],
         follow_up_questions: result.follow_up_questions || [],
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -215,7 +277,7 @@ ${contextText}`;
     const content = aiResponse.choices?.[0]?.message?.content || "I couldn't process your question. Please try again.";
     return new Response(JSON.stringify({
       answer: content,
-      sources: [],
+      sources_used: [],
       follow_up_questions: [],
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

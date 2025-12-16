@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Search, BookOpen, Filter, Loader2, MessageCircle, Sparkles, Send } from "lucide-react";
+import { Search, BookOpen, Filter, Loader2, MessageCircle, Sparkles, Send, Users } from "lucide-react";
 import { BreadcrumbCard } from "@/components/BreadcrumbCard";
 import {
   Select,
@@ -55,8 +55,12 @@ interface AISource {
 
 interface AIResponse {
   answer: string;
-  sources: AISource[];
+  sources_used: AISource[];
   follow_up_questions: string[];
+}
+
+interface FamilyMember {
+  family_id: string;
 }
 
 export default function RecipientHome() {
@@ -66,6 +70,7 @@ export default function RecipientHome() {
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [recipientRecord, setRecipientRecord] = useState<RecipientRecord | null>(null);
+  const [familyId, setFamilyId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTopic, setSelectedTopic] = useState<string>("all");
@@ -95,6 +100,17 @@ export default function RecipientHome() {
     if (!user) return;
 
     try {
+      // Fetch family membership
+      const { data: familyMemberData } = await supabase
+        .from("family_members")
+        .select("family_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (familyMemberData) {
+        setFamilyId(familyMemberData.family_id);
+      }
+
       const { data: recipientData, error: recipientError } = await supabase
         .from("recipients")
         .select("id, display_name, creator_id")
@@ -144,7 +160,7 @@ export default function RecipientHome() {
   };
 
   const handleAskQuestion = async () => {
-    if (!question.trim() || !recipientRecord) return;
+    if (!question.trim()) return;
 
     setIsAsking(true);
     setAiResponse(null);
@@ -153,7 +169,9 @@ export default function RecipientHome() {
       const response = await supabase.functions.invoke("ask-breadcrumbs", {
         body: {
           question: question.trim(),
-          recipientId: recipientRecord.id,
+          familyId: familyId,
+          recipientId: recipientRecord?.id,
+          userId: user?.id,
           userRole: "recipient",
         },
       });
@@ -163,15 +181,17 @@ export default function RecipientHome() {
       const data = response.data as AIResponse;
       setAiResponse({
         answer: data?.answer || "I couldn't find an answer in the breadcrumbs left for you.",
-        sources: data?.sources || [],
+        sources_used: data?.sources_used || [],
         follow_up_questions: data?.follow_up_questions || [],
       });
 
-      await supabase.from("questions").insert({
-        recipient_id: recipientRecord.id,
-        question_text: question.trim(),
-        ai_answer_text: data?.answer || null,
-      });
+      if (recipientRecord) {
+        await supabase.from("questions").insert({
+          recipient_id: recipientRecord.id,
+          question_text: question.trim(),
+          ai_answer_text: data?.answer || null,
+        });
+      }
     } catch (error: any) {
       console.error("Error asking question:", error);
       const errorMessage = error?.message || "Failed to get an answer. Please try again.";
@@ -246,18 +266,29 @@ export default function RecipientHome() {
         </p>
       </div>
 
-      {/* Ask a Question */}
+      {/* Ask a Question - Family Scoped */}
       <div className="p-6 mb-8 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10">
         <div className="flex items-start gap-4">
           <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-amber-100/20 text-amber-100 flex items-center justify-center">
             <Sparkles className="w-5 h-5" />
           </div>
           <div className="flex-1">
-            <h3 className="font-serif text-lg font-medium text-white mb-1">
-              Ask a Question
-            </h3>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-serif text-lg font-medium text-white">
+                Ask a Question
+              </h3>
+              {familyId && (
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100/10 text-amber-100 border border-amber-100/20">
+                  <Users className="w-3 h-3" />
+                  Family
+                </span>
+              )}
+            </div>
             <p className="text-sm text-white/60 mb-4">
-              Get answers based only on the wisdom that was left for you.
+              {familyId 
+                ? "Get answers from all wisdom shared within your family."
+                : "Get answers based only on the wisdom that was left for you."
+              }
             </p>
             <div className="space-y-4">
               <Textarea
@@ -298,11 +329,11 @@ export default function RecipientHome() {
                   </div>
 
                   {/* Sources */}
-                  {aiResponse.sources.length > 0 && (
+                  {aiResponse.sources_used.length > 0 && (
                     <div className="p-3 rounded-lg bg-amber-100/10 border border-amber-100/20">
                       <p className="text-xs font-medium text-amber-100 mb-2">Sources used:</p>
                       <div className="flex flex-wrap gap-2">
-                        {aiResponse.sources.map((source) => (
+                        {aiResponse.sources_used.map((source) => (
                           <Link
                             key={source.id}
                             to={`/breadcrumb/${source.id}`}

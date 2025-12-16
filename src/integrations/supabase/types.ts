@@ -21,6 +21,7 @@ export type Database = {
           content_type: string
           created_at: string
           creator_id: string
+          family_id: string | null
           file_url: string | null
           id: string
           include_commentary: boolean | null
@@ -34,6 +35,7 @@ export type Database = {
           title: string
           topic_id: string | null
           updated_at: string
+          visibility: string
         }
         Insert: {
           audio_url?: string | null
@@ -41,6 +43,7 @@ export type Database = {
           content_type?: string
           created_at?: string
           creator_id: string
+          family_id?: string | null
           file_url?: string | null
           id?: string
           include_commentary?: boolean | null
@@ -54,6 +57,7 @@ export type Database = {
           title: string
           topic_id?: string | null
           updated_at?: string
+          visibility?: string
         }
         Update: {
           audio_url?: string | null
@@ -61,6 +65,7 @@ export type Database = {
           content_type?: string
           created_at?: string
           creator_id?: string
+          family_id?: string | null
           file_url?: string | null
           id?: string
           include_commentary?: boolean | null
@@ -74,6 +79,7 @@ export type Database = {
           title?: string
           topic_id?: string | null
           updated_at?: string
+          visibility?: string
         }
         Relationships: [
           {
@@ -81,6 +87,13 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "breadcrumbs_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
             referencedColumns: ["id"]
           },
           {
@@ -122,6 +135,56 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      families: {
+        Row: {
+          created_at: string
+          id: string
+          name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string | null
+        }
+        Relationships: []
+      }
+      family_members: {
+        Row: {
+          created_at: string
+          family_id: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          family_id: string
+          id?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          family_id?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_members_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
