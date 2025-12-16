@@ -335,7 +335,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_family_id: { Args: { _user_id: string }; Returns: string }
+      is_family_owner: {
+        Args: { _family_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "creator" | "recipient"
