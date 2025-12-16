@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, Loader2, BookOpen, FileText, Mic, AlertCircle } from "lucide-react";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 interface Recipient {
@@ -47,8 +48,7 @@ export default function CreateBreadcrumb() {
   const [duplicateWarning, setDuplicateWarning] = useState<DuplicateWarning | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [formData, setFormData] = useState({
-    recipient_id: "",
-    // Can be a specific ID or "__all__" for all family members
+    recipient_ids: [] as string[],
     topic_id: "",
     title: "",
     content_type: "text" as ContentType,
@@ -88,10 +88,10 @@ export default function CreateBreadcrumb() {
     }
   };
 
-  // Check for duplicates when title or recipient changes (skip for "All Family")
+  // Check for duplicates when title or recipient changes (skip for multiple recipients)
   useEffect(() => {
     const checkDuplicate = async () => {
-      if (!profile || !formData.title || !formData.recipient_id || formData.recipient_id === "__all__") {
+      if (!profile || !formData.title || formData.recipient_ids.length !== 1) {
         setDuplicateWarning(null);
         return;
       }
@@ -99,7 +99,7 @@ export default function CreateBreadcrumb() {
         const {
           data,
           error
-        } = await supabase.from("breadcrumbs").select("id, title").eq("creator_id", profile.id).eq("recipient_id", formData.recipient_id).ilike("title", formData.title).gte("created_at", new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()).limit(1);
+        } = await supabase.from("breadcrumbs").select("id, title").eq("creator_id", profile.id).eq("recipient_id", formData.recipient_ids[0]).ilike("title", formData.title).gte("created_at", new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()).limit(1);
         if (error) throw error;
         if (data && data.length > 0) {
           setDuplicateWarning({
@@ -115,7 +115,7 @@ export default function CreateBreadcrumb() {
     };
     const debounce = setTimeout(checkDuplicate, 500);
     return () => clearTimeout(debounce);
-  }, [formData.title, formData.recipient_id, profile]);
+  }, [formData.title, formData.recipient_ids, profile]);
   const handleAddTopic = async () => {
     if (!profile || !newTopicName.trim()) return;
     try {
@@ -188,10 +188,10 @@ export default function CreateBreadcrumb() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
-    if (!formData.recipient_id) {
+    if (formData.recipient_ids.length === 0) {
       toast({
         title: "Recipient required",
-        description: "Please select who this breadcrumb is for.",
+        description: "Please select at least one recipient.",
         variant: "destructive"
       });
       return;
@@ -229,8 +229,8 @@ export default function CreateBreadcrumb() {
       }
       const contentType = formData.is_scripture ? "scripture" : formData.content_type;
 
-      // Determine which recipients to create breadcrumbs for
-      const targetRecipientIds = formData.recipient_id === "__all__" ? recipients.map(r => r.id) : [formData.recipient_id];
+      // Use selected recipient IDs
+      const targetRecipientIds = formData.recipient_ids;
 
       // Create breadcrumb(s) for each recipient
       const breadcrumbsToInsert = targetRecipientIds.map(recipientId => ({
@@ -326,25 +326,47 @@ export default function CreateBreadcrumb() {
         <form onSubmit={handleSubmit} className="glass-card p-6 md:p-8 animate-fade-up space-y-6" style={{
         animationDelay: "0.1s"
       }}>
-          {/* Recipient */}
-          <div className="space-y-2">
-            <Label htmlFor="recipient">Who is this for? *</Label>
-            <Select value={formData.recipient_id} onValueChange={value => setFormData({
-            ...formData,
-            recipient_id: value
-          })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a recipient" />
-              </SelectTrigger>
-              <SelectContent>
-                {recipients.length > 1 && <SelectItem value="__all__" className="font-medium">
-                    All Family Members
-                  </SelectItem>}
-                {recipients.map(r => <SelectItem key={r.id} value={r.id}>
+          {/* Recipients Multi-Select */}
+          <div className="space-y-3">
+            <Label>Who is this for? *</Label>
+            {recipients.length > 1 && (
+              <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                <Checkbox
+                  id="select-all"
+                  checked={formData.recipient_ids.length === recipients.length}
+                  onCheckedChange={(checked) => {
+                    setFormData({
+                      ...formData,
+                      recipient_ids: checked ? recipients.map(r => r.id) : []
+                    });
+                  }}
+                />
+                <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                  Select All Family Members
+                </label>
+              </div>
+            )}
+            <div className="space-y-2">
+              {recipients.map(r => (
+                <div key={r.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`recipient-${r.id}`}
+                    checked={formData.recipient_ids.includes(r.id)}
+                    onCheckedChange={(checked) => {
+                      setFormData({
+                        ...formData,
+                        recipient_ids: checked
+                          ? [...formData.recipient_ids, r.id]
+                          : formData.recipient_ids.filter(id => id !== r.id)
+                      });
+                    }}
+                  />
+                  <label htmlFor={`recipient-${r.id}`} className="text-sm cursor-pointer">
                     {r.display_name}
-                  </SelectItem>)}
-              </SelectContent>
-            </Select>
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Topic */}
