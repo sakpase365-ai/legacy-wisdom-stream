@@ -41,12 +41,21 @@ interface Scripture {
   sort_order: number;
 }
 
+interface LinkedRecipient {
+  recipient_id: string;
+  recipients: {
+    id: string;
+    display_name: string;
+  };
+}
+
 export default function BreadcrumbDetail() {
   const { id } = useParams<{ id: string }>();
   const { profile, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbDetail | null>(null);
   const [scriptures, setScriptures] = useState<Scripture[]>([]);
+  const [linkedRecipients, setLinkedRecipients] = useState<LinkedRecipient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,7 +74,7 @@ export default function BreadcrumbDetail() {
     if (!id) return;
 
     try {
-      const [breadcrumbRes, scripturesRes] = await Promise.all([
+      const [breadcrumbRes, scripturesRes, linkedRecipientsRes] = await Promise.all([
         supabase
           .from("breadcrumbs")
           .select(`
@@ -91,13 +100,18 @@ export default function BreadcrumbDetail() {
           .from("breadcrumb_scriptures")
           .select("id, scripture_reference, scripture_text, sort_order")
           .eq("breadcrumb_id", id)
-          .order("sort_order")
+          .order("sort_order"),
+        supabase
+          .from("breadcrumb_recipients")
+          .select("recipient_id, recipients(id, display_name)")
+          .eq("breadcrumb_id", id)
       ]);
 
       if (breadcrumbRes.error) throw breadcrumbRes.error;
 
       setBreadcrumb(breadcrumbRes.data as any);
       setScriptures(scripturesRes.data || []);
+      setLinkedRecipients(linkedRecipientsRes.data as any || []);
     } catch (err: any) {
       console.error("Error fetching breadcrumb:", err);
       setError("This breadcrumb could not be found or you don't have access to it.");
@@ -164,10 +178,12 @@ export default function BreadcrumbDetail() {
               {breadcrumb.title}
             </h1>
             <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-white/60">
-              {profile?.role === "creator" && breadcrumb.recipient && (
+              {profile?.role === "creator" && (linkedRecipients.length > 0 || breadcrumb.recipient) && (
                 <span className="flex items-center gap-1">
                   <User className="w-4 h-4" />
-                  For {breadcrumb.recipient.display_name}
+                  For {linkedRecipients.length > 0 
+                    ? linkedRecipients.map(lr => lr.recipients?.display_name).filter(Boolean).join(", ")
+                    : breadcrumb.recipient?.display_name}
                 </span>
               )}
               {profile?.role === "recipient" && breadcrumb.creator && (

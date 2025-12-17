@@ -261,12 +261,13 @@ export default function CreateBreadcrumb() {
         audioUrl = uploadedUrl;
       }
 
-      const breadcrumbsToInsert = formData.recipient_ids.map(recipientId => ({
+      // Create a single breadcrumb (use first recipient_id for backward compatibility)
+      const breadcrumbData = {
         creator_id: profile.id,
-        recipient_id: recipientId,
+        recipient_id: formData.recipient_ids[0],
         topic_id: selectedTopicId,
         family_id: familyId,
-        visibility: "family" as const,
+        visibility: formData.recipient_ids.length > 1 ? "family" : "family" as const,
         title: formData.title.trim(),
         content_type: formData.content_type,
         text_body: formData.text_body || null,
@@ -276,40 +277,55 @@ export default function CreateBreadcrumb() {
         scripture_text: null,
         include_commentary: formData.include_commentary,
         commentary_text: formData.commentary_text || null
-      }));
+      };
 
-      const { data: insertedBreadcrumbs, error } = await supabase
+      const { data: insertedBreadcrumb, error } = await supabase
         .from("breadcrumbs")
-        .insert(breadcrumbsToInsert)
-        .select("id");
+        .insert(breadcrumbData)
+        .select("id")
+        .single();
       
       if (error) throw error;
 
-      // Insert scriptures for each breadcrumb if any
-      if (scriptures.length > 0 && insertedBreadcrumbs) {
-        const scripturesToInsert = insertedBreadcrumbs.flatMap((bc, idx) =>
-          scriptures.map((s, sortOrder) => ({
-            breadcrumb_id: bc.id,
+      // Link all selected recipients to this breadcrumb
+      if (insertedBreadcrumb) {
+        const recipientLinks = formData.recipient_ids.map(recipientId => ({
+          breadcrumb_id: insertedBreadcrumb.id,
+          recipient_id: recipientId
+        }));
+
+        const { error: linkError } = await supabase
+          .from("breadcrumb_recipients")
+          .insert(recipientLinks);
+
+        if (linkError) {
+          console.error("Error linking recipients:", linkError);
+        }
+
+        // Insert scriptures if any
+        if (scriptures.length > 0) {
+          const scripturesToInsert = scriptures.map((s, sortOrder) => ({
+            breadcrumb_id: insertedBreadcrumb.id,
             scripture_reference: s.reference,
             scripture_text: s.text || null,
             sort_order: sortOrder
-          }))
-        );
+          }));
 
-        const { error: scriptureError } = await supabase
-          .from("breadcrumb_scriptures")
-          .insert(scripturesToInsert);
+          const { error: scriptureError } = await supabase
+            .from("breadcrumb_scriptures")
+            .insert(scripturesToInsert);
 
-        if (scriptureError) {
-          console.error("Error saving scriptures:", scriptureError);
+          if (scriptureError) {
+            console.error("Error saving scriptures:", scriptureError);
+          }
         }
       }
 
       const recipientCount = formData.recipient_ids.length;
       toast({
-        title: recipientCount > 1 ? "Breadcrumbs created" : "Breadcrumb created",
+        title: "Breadcrumb created",
         description: recipientCount > 1
-          ? `Your wisdom has been saved for ${recipientCount} family members.`
+          ? `Your wisdom has been shared with ${recipientCount} family members.`
           : "Your wisdom has been saved."
       });
       navigate("/creator");

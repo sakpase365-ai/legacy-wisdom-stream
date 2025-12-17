@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      breadcrumb_recipients: {
+        Row: {
+          breadcrumb_id: string
+          created_at: string
+          id: string
+          recipient_id: string
+        }
+        Insert: {
+          breadcrumb_id: string
+          created_at?: string
+          id?: string
+          recipient_id: string
+        }
+        Update: {
+          breadcrumb_id?: string
+          created_at?: string
+          id?: string
+          recipient_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "breadcrumb_recipients_breadcrumb_id_fkey"
+            columns: ["breadcrumb_id"]
+            isOneToOne: false
+            referencedRelation: "breadcrumbs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "breadcrumb_recipients_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "recipients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       breadcrumb_scriptures: {
         Row: {
           breadcrumb_id: string
