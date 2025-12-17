@@ -188,25 +188,6 @@ export default function BreadcrumbDetail() {
         </div>
       )}
 
-      {/* Scripture Reference */}
-      {breadcrumb.scripture_reference && (
-        <div className="p-6 mb-6 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10">
-          <div className="flex items-start gap-3">
-            <Quote className="w-5 h-5 text-amber-100 flex-shrink-0 mt-1" />
-            <div>
-              <p className="font-serif text-lg font-medium text-white mb-2">
-                {breadcrumb.scripture_reference}
-              </p>
-              {breadcrumb.scripture_text && (
-                <p className="text-white/70 italic leading-relaxed">
-                  "{breadcrumb.scripture_text}"
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main Content */}
       {breadcrumb.text_body && (
         <div className="p-6 mb-6 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10">
@@ -221,13 +202,32 @@ export default function BreadcrumbDetail() {
 
       {/* Commentary */}
       {breadcrumb.include_commentary && breadcrumb.commentary_text && (
-        <div className="p-6 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10 border-l-4 border-l-amber-100/50">
+        <div className="p-6 mb-6 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10 border-l-4 border-l-amber-100/50">
           <h3 className="font-serif text-lg font-medium text-white mb-4">
             Personal Commentary
           </h3>
           <p className="text-white/70 leading-relaxed whitespace-pre-wrap">
             {breadcrumb.commentary_text}
           </p>
+        </div>
+      )}
+
+      {/* Scripture Reference */}
+      {breadcrumb.scripture_reference && (
+        <div className="p-6 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10">
+          <div className="flex items-start gap-3">
+            <Quote className="w-5 h-5 text-amber-100 flex-shrink-0 mt-1" />
+            <div>
+              <p className="font-serif text-lg font-medium text-white mb-2">
+                {breadcrumb.scripture_reference}
+              </p>
+              {breadcrumb.scripture_text && (
+                <p className="text-white/70 italic leading-relaxed">
+                  "{breadcrumb.scripture_text}"
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </DashboardLayout>
