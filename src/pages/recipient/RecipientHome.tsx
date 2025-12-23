@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Search, BookOpen, Filter, Loader2, MessageCircle, Sparkles, Send, Users } from "lucide-react";
+import { Search, BookOpen, Filter, Loader2, MessageCircle, Sparkles, Send, Users, ExternalLink, ChevronRight, Bot } from "lucide-react";
 import { BreadcrumbCard } from "@/components/BreadcrumbCard";
 import {
   Select,
@@ -318,28 +318,79 @@ export default function RecipientHome() {
                 </Button>
               </div>
 
-              {aiResponse && (
-                <div className="space-y-4">
-                  {/* Answer */}
-                  <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-                    <p className="text-sm font-medium text-white mb-2">Answer:</p>
-                    <p className="text-sm text-white/80 whitespace-pre-wrap">
-                      {aiResponse.answer}
-                    </p>
+              {/* Loading State */}
+              {isAsking && (
+                <div className="animate-fade-in space-y-4">
+                  <div className="p-5 rounded-xl bg-gradient-to-br from-amber-100/5 to-amber-100/10 border border-amber-100/20">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-100/20 flex items-center justify-center">
+                        <Bot className="w-4 h-4 text-amber-100 animate-pulse" />
+                      </div>
+                      <div className="flex-1 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-amber-100">Finding wisdom...</span>
+                          <div className="flex gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-100 animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-100 animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-100 animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="h-3 bg-white/10 rounded-full w-full animate-pulse" />
+                          <div className="h-3 bg-white/10 rounded-full w-4/5 animate-pulse" style={{ animationDelay: '150ms' }} />
+                          <div className="h-3 bg-white/10 rounded-full w-3/5 animate-pulse" style={{ animationDelay: '300ms' }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* AI Response */}
+              {aiResponse && !isAsking && (
+                <div className="animate-fade-in space-y-4">
+                  {/* Answer Card */}
+                  <div className="p-5 rounded-xl bg-gradient-to-br from-amber-100/5 to-amber-100/10 border border-amber-100/20 shadow-lg shadow-amber-100/5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-100/20 flex items-center justify-center">
+                        <Bot className="w-4 h-4 text-amber-100" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-amber-100/60 uppercase tracking-wider mb-2">
+                          Based on your family's wisdom
+                        </p>
+                        <div className="prose prose-sm prose-invert max-w-none">
+                          <p className="text-white/90 leading-relaxed whitespace-pre-wrap">
+                            {aiResponse.answer}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Sources */}
+                  {/* Sources Card */}
                   {aiResponse.sources_used.length > 0 && (
-                    <div className="p-3 rounded-lg bg-amber-100/10 border border-amber-100/20">
-                      <p className="text-xs font-medium text-amber-100 mb-2">Sources used:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {aiResponse.sources_used.map((source) => (
+                    <div className="p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                      <div className="flex items-center gap-2 mb-3">
+                        <BookOpen className="w-4 h-4 text-amber-100/70" />
+                        <p className="text-xs font-semibold text-white/70 uppercase tracking-wider">
+                          {aiResponse.sources_used.length} Source{aiResponse.sources_used.length > 1 ? 's' : ''} Referenced
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        {aiResponse.sources_used.map((source, index) => (
                           <Link
                             key={source.id}
                             to={`/breadcrumb/${source.id}`}
-                            className="text-xs px-2 py-1 rounded bg-amber-100/20 text-amber-100 hover:bg-amber-100/30 transition-colors"
+                            className="group flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-amber-100/10 border border-transparent hover:border-amber-100/20 transition-all duration-200"
                           >
-                            {source.title}
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-100/20 text-amber-100 text-xs font-medium flex items-center justify-center">
+                              {index + 1}
+                            </span>
+                            <span className="flex-1 text-sm text-white/80 group-hover:text-white transition-colors truncate">
+                              {source.title}
+                            </span>
+                            <ExternalLink className="w-4 h-4 text-white/40 group-hover:text-amber-100 transition-colors opacity-0 group-hover:opacity-100" />
                           </Link>
                         ))}
                       </div>
@@ -348,16 +399,22 @@ export default function RecipientHome() {
 
                   {/* Follow-up Questions */}
                   {aiResponse.follow_up_questions.length > 0 && (
-                    <div className="p-3 rounded-lg bg-white/5 border border-white/10">
-                      <p className="text-xs font-medium text-white/60 mb-2">You might also ask:</p>
-                      <div className="flex flex-wrap gap-2">
+                    <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                      <p className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <Sparkles className="w-3 h-3" />
+                        Continue exploring
+                      </p>
+                      <div className="grid gap-2">
                         {aiResponse.follow_up_questions.map((followUp, index) => (
                           <button
                             key={index}
                             onClick={() => handleFollowUpClick(followUp)}
-                            className="text-xs px-2 py-1 rounded bg-white/10 text-white/80 hover:bg-white/20 transition-colors text-left"
+                            className="group flex items-center gap-2 p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all duration-200 text-left"
                           >
-                            {followUp}
+                            <ChevronRight className="w-4 h-4 text-amber-100/50 group-hover:text-amber-100 group-hover:translate-x-0.5 transition-all" />
+                            <span className="text-sm text-white/70 group-hover:text-white transition-colors">
+                              {followUp}
+                            </span>
                           </button>
                         ))}
                       </div>
