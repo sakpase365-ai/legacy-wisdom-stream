@@ -111,13 +111,41 @@ export default function RecipientHome() {
         setFamilyId(familyMemberData.family_id);
       }
 
-      const { data: recipientData, error: recipientError } = await supabase
+      // First try to find recipient record already linked to this user
+      let { data: recipientData, error: recipientError } = await supabase
         .from("recipients")
         .select("id, display_name, creator_id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (recipientError || !recipientData) {
+      // If no linked recipient found, try to claim one by email match
+      if (!recipientData && user.email) {
+        const { data: unclaimedRecipient } = await supabase
+          .from("recipients")
+          .select("id, display_name, creator_id")
+          .eq("email", user.email.toLowerCase())
+          .is("user_id", null)
+          .maybeSingle();
+
+        if (unclaimedRecipient) {
+          // Claim the recipient record by linking user_id
+          const { error: claimError } = await supabase
+            .from("recipients")
+            .update({ user_id: user.id })
+            .eq("id", unclaimedRecipient.id)
+            .is("user_id", null);
+
+          if (!claimError) {
+            recipientData = unclaimedRecipient;
+            toast({
+              title: "Welcome!",
+              description: "You've been connected to your breadcrumbs.",
+            });
+          }
+        }
+      }
+
+      if (!recipientData) {
         setRecipientRecord(null);
         setIsLoading(false);
         return;
