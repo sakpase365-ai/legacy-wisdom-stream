@@ -153,7 +153,8 @@ export default function RecipientHome() {
 
       setRecipientRecord(recipientData);
 
-      const { data: breadcrumbsData, error: breadcrumbsError } = await supabase
+      // First, get breadcrumbs directly assigned to this recipient
+      const { data: directBreadcrumbs, error: directError } = await supabase
         .from("breadcrumbs")
         .select(`
           id,
@@ -168,6 +169,49 @@ export default function RecipientHome() {
         `)
         .eq("recipient_id", recipientData.id)
         .order("created_at", { ascending: false });
+
+      // Also get breadcrumbs linked via the breadcrumb_recipients junction table
+      const { data: linkedRecipients } = await supabase
+        .from("breadcrumb_recipients")
+        .select("breadcrumb_id")
+        .eq("recipient_id", recipientData.id);
+
+      let linkedBreadcrumbs: any[] = [];
+      if (linkedRecipients && linkedRecipients.length > 0) {
+        const linkedIds = linkedRecipients.map(lr => lr.breadcrumb_id);
+        const { data: linkedData } = await supabase
+          .from("breadcrumbs")
+          .select(`
+            id,
+            title,
+            content_type,
+            text_body,
+            is_scripture,
+            scripture_reference,
+            created_at,
+            topic:topics(id, name),
+            creator:profiles!breadcrumbs_creator_id_fkey(id, name)
+          `)
+          .in("id", linkedIds)
+          .order("created_at", { ascending: false });
+        
+        linkedBreadcrumbs = linkedData || [];
+      }
+
+      // Merge and deduplicate breadcrumbs
+      const allBreadcrumbs = [...(directBreadcrumbs || [])];
+      const existingIds = new Set(allBreadcrumbs.map(b => b.id));
+      linkedBreadcrumbs.forEach(b => {
+        if (!existingIds.has(b.id)) {
+          allBreadcrumbs.push(b);
+        }
+      });
+      
+      // Sort by created_at descending
+      allBreadcrumbs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      const breadcrumbsData = allBreadcrumbs;
+      const breadcrumbsError = directError;
 
       if (breadcrumbsError) throw breadcrumbsError;
 
