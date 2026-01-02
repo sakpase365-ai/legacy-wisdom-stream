@@ -1,6 +1,6 @@
 import { CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, FileText, Mic, Link as LinkIcon, Image, Video, Calendar, User } from "lucide-react";
+import { BookOpen, FileText, Mic, Link as LinkIcon, Image, Video, Calendar, User, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface BreadcrumbCardProps {
@@ -24,6 +24,7 @@ interface BreadcrumbCardProps {
       id: string;
       name: string;
     };
+    recipient_count?: number;
   };
   showRecipient?: boolean;
   showCreator?: boolean;
@@ -49,6 +50,8 @@ export function BreadcrumbCard({ breadcrumb, showRecipient, showCreator, style }
     ? breadcrumb.text_body.substring(0, 120) + (breadcrumb.text_body.length > 120 ? "..." : "")
     : breadcrumb.scripture_reference || null;
 
+  const isSharedWithMultiple = (breadcrumb.recipient_count ?? 1) > 1;
+
   return (
     <Link 
       to={`/breadcrumb/${breadcrumb.id}`}
@@ -65,9 +68,17 @@ export function BreadcrumbCard({ breadcrumb, showRecipient, showCreator, style }
           {/* Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="font-serif text-lg font-medium text-foreground truncate">
-                {breadcrumb.title}
-              </h3>
+              <div className="flex items-center gap-2 min-w-0">
+                <h3 className="font-serif text-lg font-medium text-foreground truncate">
+                  {breadcrumb.title}
+                </h3>
+                {isSharedWithMultiple && (
+                  <span className="flex-shrink-0 inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                    <Users className="w-3 h-3" />
+                    Family
+                  </span>
+                )}
+              </div>
               {breadcrumb.topic && (
                 <span className="flex-shrink-0 text-xs px-2 py-1 rounded-full bg-secondary text-secondary-foreground">
                   {breadcrumb.topic.name}
@@ -86,10 +97,16 @@ export function BreadcrumbCard({ breadcrumb, showRecipient, showCreator, style }
 
             {/* Meta */}
             <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-              {showRecipient && breadcrumb.recipient && (
+              {showRecipient && breadcrumb.recipient && !isSharedWithMultiple && (
                 <span className="flex items-center gap-1">
                   <User className="w-3 h-3" />
                   For {breadcrumb.recipient.display_name}
+                </span>
+              )}
+              {showRecipient && isSharedWithMultiple && (
+                <span className="flex items-center gap-1">
+                  <Users className="w-3 h-3" />
+                  Shared with {breadcrumb.recipient_count} members
                 </span>
               )}
               {showCreator && breadcrumb.creator && (

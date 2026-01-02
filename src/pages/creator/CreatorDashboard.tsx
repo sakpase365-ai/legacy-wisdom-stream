@@ -24,6 +24,7 @@ interface Breadcrumb {
     id: string;
     name: string;
   } | null;
+  recipient_count?: number;
 }
 interface Recipient {
   id: string;
@@ -80,6 +81,30 @@ export default function CreatorDashboard() {
         ascending: false
       });
       if (breadcrumbsError) throw breadcrumbsError;
+
+      // Fetch recipient counts for each breadcrumb
+      const breadcrumbIds = (breadcrumbsData || []).map(b => b.id);
+      let recipientCounts: Record<string, number> = {};
+      
+      if (breadcrumbIds.length > 0) {
+        const { data: recipientLinks } = await supabase
+          .from("breadcrumb_recipients")
+          .select("breadcrumb_id")
+          .in("breadcrumb_id", breadcrumbIds);
+        
+        if (recipientLinks) {
+          recipientLinks.forEach(link => {
+            recipientCounts[link.breadcrumb_id] = (recipientCounts[link.breadcrumb_id] || 0) + 1;
+          });
+        }
+      }
+
+      // Merge recipient counts into breadcrumbs
+      const breadcrumbsWithCounts = (breadcrumbsData || []).map(b => ({
+        ...b,
+        recipient_count: recipientCounts[b.id] || 1
+      }));
+
       const {
         data: recipientsData,
         error: recipientsError
@@ -90,7 +115,7 @@ export default function CreatorDashboard() {
         error: topicsError
       } = await supabase.from("topics").select("id, name").eq("is_active", true).order("sort_order");
       if (topicsError) throw topicsError;
-      setBreadcrumbs(breadcrumbsData as any || []);
+      setBreadcrumbs(breadcrumbsWithCounts as any || []);
       setRecipients(recipientsData || []);
       setTopics(topicsData || []);
     } catch (error) {
