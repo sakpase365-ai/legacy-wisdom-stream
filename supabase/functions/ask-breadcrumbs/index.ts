@@ -81,12 +81,11 @@ serve(async (req) => {
         return false;
       });
     } 
-    // Recipient without family: fetch ALL breadcrumbs assigned to them via breadcrumb_recipients
-    else if (userRole === "recipient" && recipientId) {
-      console.log("Fetching all breadcrumbs for recipient:", recipientId);
+    // Recipient: fetch ALL breadcrumbs in the database for comprehensive wisdom access
+    else if (userRole === "recipient") {
+      console.log("Fetching ALL breadcrumbs for recipient access");
       
-      // First get breadcrumbs directly assigned to recipient
-      const { data: directBreadcrumbs, error: directError } = await supabase
+      const { data, error } = await supabase
         .from("breadcrumbs")
         .select(`
           id,
@@ -100,52 +99,16 @@ serve(async (req) => {
           visibility,
           topic:topics(name, category:categories(name))
         `)
-        .eq("recipient_id", recipientId)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100);
 
-      if (directError) {
-        console.error("Database error fetching direct breadcrumbs:", directError);
+      if (error) {
+        console.error("Database error fetching all breadcrumbs:", error);
         throw new Error("Failed to fetch breadcrumbs");
       }
-
-      // Also get breadcrumbs from breadcrumb_recipients junction table
-      const { data: junctionData, error: junctionError } = await supabase
-        .from("breadcrumb_recipients")
-        .select(`
-          breadcrumb:breadcrumbs(
-            id,
-            title,
-            text_body,
-            commentary_text,
-            scripture_reference,
-            scripture_text,
-            created_at,
-            recipient_id,
-            visibility,
-            topic:topics(name, category:categories(name))
-          )
-        `)
-        .eq("recipient_id", recipientId);
-
-      if (junctionError) {
-        console.error("Database error fetching junction breadcrumbs:", junctionError);
-      }
-
-      // Combine and deduplicate
-      const junctionBreadcrumbs = (junctionData || [])
-        .map((j: any) => j.breadcrumb)
-        .filter(Boolean);
       
-      const allBreadcrumbs = [...(directBreadcrumbs || []), ...junctionBreadcrumbs];
-      const seen = new Set();
-      breadcrumbsData = allBreadcrumbs.filter((b: any) => {
-        if (seen.has(b.id)) return false;
-        seen.add(b.id);
-        return true;
-      });
-      
-      console.log(`Found ${directBreadcrumbs?.length || 0} direct + ${junctionBreadcrumbs.length} junction breadcrumbs`);
+      breadcrumbsData = data || [];
+      console.log(`Found ${breadcrumbsData.length} total breadcrumbs`);
     } else if (userRole === "creator" && creatorId) {
       const { data, error } = await supabase
         .from("breadcrumbs")
