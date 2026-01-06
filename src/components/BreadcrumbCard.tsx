@@ -2,6 +2,7 @@ import { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { BookOpen, FileText, Mic, Link as LinkIcon, Image, Video, Calendar, User, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface BreadcrumbCardProps {
   breadcrumb: {
@@ -25,6 +26,7 @@ interface BreadcrumbCardProps {
       name: string;
     };
     recipient_count?: number;
+    recipient_names?: string[];
   };
   showRecipient?: boolean;
   showCreator?: boolean;
@@ -73,10 +75,24 @@ export function BreadcrumbCard({ breadcrumb, showRecipient, showCreator, style }
                   {breadcrumb.title}
                 </h3>
                 {isSharedWithMultiple && (
-                  <span className="flex-shrink-0 inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                    <Users className="w-3 h-3" />
-                    Family
-                  </span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex-shrink-0 inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 cursor-help">
+                          <Users className="w-3 h-3" />
+                          Family
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="font-medium mb-1">Shared with:</p>
+                        <ul className="text-xs space-y-0.5">
+                          {breadcrumb.recipient_names?.map((name, idx) => (
+                            <li key={idx}>{name}</li>
+                          )) || <li>Multiple recipients</li>}
+                        </ul>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </div>
               {breadcrumb.topic && (
