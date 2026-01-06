@@ -67,7 +67,7 @@ serve(async (req) => {
         `)
         .eq("family_id", familyId)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(50);
 
       if (error) {
         console.error("Database error fetching family breadcrumbs:", error);
@@ -81,9 +81,12 @@ serve(async (req) => {
         return false;
       });
     } 
-    // Fallback to old recipient/creator based access
+    // Recipient without family: fetch ALL breadcrumbs assigned to them via breadcrumb_recipients
     else if (userRole === "recipient" && recipientId) {
-      const { data, error } = await supabase
+      console.log("Fetching all breadcrumbs for recipient:", recipientId);
+      
+      // First get breadcrumbs directly assigned to recipient
+      const { data: directBreadcrumbs, error: directError } = await supabase
         .from("breadcrumbs")
         .select(`
           id,
@@ -99,10 +102,50 @@ serve(async (req) => {
         `)
         .eq("recipient_id", recipientId)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(50);
 
-      if (error) throw new Error("Failed to fetch breadcrumbs");
-      breadcrumbsData = data || [];
+      if (directError) {
+        console.error("Database error fetching direct breadcrumbs:", directError);
+        throw new Error("Failed to fetch breadcrumbs");
+      }
+
+      // Also get breadcrumbs from breadcrumb_recipients junction table
+      const { data: junctionData, error: junctionError } = await supabase
+        .from("breadcrumb_recipients")
+        .select(`
+          breadcrumb:breadcrumbs(
+            id,
+            title,
+            text_body,
+            commentary_text,
+            scripture_reference,
+            scripture_text,
+            created_at,
+            recipient_id,
+            visibility,
+            topic:topics(name, category:categories(name))
+          )
+        `)
+        .eq("recipient_id", recipientId);
+
+      if (junctionError) {
+        console.error("Database error fetching junction breadcrumbs:", junctionError);
+      }
+
+      // Combine and deduplicate
+      const junctionBreadcrumbs = (junctionData || [])
+        .map((j: any) => j.breadcrumb)
+        .filter(Boolean);
+      
+      const allBreadcrumbs = [...(directBreadcrumbs || []), ...junctionBreadcrumbs];
+      const seen = new Set();
+      breadcrumbsData = allBreadcrumbs.filter((b: any) => {
+        if (seen.has(b.id)) return false;
+        seen.add(b.id);
+        return true;
+      });
+      
+      console.log(`Found ${directBreadcrumbs?.length || 0} direct + ${junctionBreadcrumbs.length} junction breadcrumbs`);
     } else if (userRole === "creator" && creatorId) {
       const { data, error } = await supabase
         .from("breadcrumbs")
@@ -120,7 +163,7 @@ serve(async (req) => {
         `)
         .eq("creator_id", creatorId)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(50);
 
       if (error) throw new Error("Failed to fetch breadcrumbs");
       breadcrumbsData = data || [];
