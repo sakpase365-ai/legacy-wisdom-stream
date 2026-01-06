@@ -1,1 +1,7 @@
 project_id = "zcufyajirmowxlddmsfr"
+
+[functions.ask-breadcrumbs]
+verify_jwt = false
+
+[functions.talk-to-creator]
+verify_jwt = false

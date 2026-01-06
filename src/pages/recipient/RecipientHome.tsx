@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Search, BookOpen, Filter, Loader2, MessageCircle, Sparkles, Send, Users, ExternalLink, ChevronRight, Bot, Mic } from "lucide-react";
+import { Search, BookOpen, Filter, Loader2, MessageCircle, Sparkles, Send, Users, ExternalLink, ChevronRight, Bot, Mic, Heart } from "lucide-react";
 import { VoiceSpeechInput } from "@/components/VoiceSpeechInput";
 import { BreadcrumbCard } from "@/components/BreadcrumbCard";
+import { TalkToCreatorChat } from "@/components/TalkToCreatorChat";
 import {
   Select,
   SelectContent,
@@ -64,12 +65,18 @@ interface FamilyMember {
   family_id: string;
 }
 
+interface Creator {
+  id: string;
+  name: string;
+}
+
 export default function RecipientHome() {
   const { profile, user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [creators, setCreators] = useState<Creator[]>([]);
   const [recipientRecord, setRecipientRecord] = useState<RecipientRecord | null>(null);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,6 +87,10 @@ export default function RecipientHome() {
   const [question, setQuestion] = useState("");
   const [aiResponse, setAiResponse] = useState<AIResponse | null>(null);
   const [isAsking, setIsAsking] = useState(false);
+  
+  // Talk to Creator state
+  const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !profile) {
@@ -217,19 +228,29 @@ export default function RecipientHome() {
       if (breadcrumbsError) throw breadcrumbsError;
 
       const uniqueTopics = new Map<string, Topic>();
+      const uniqueCreators = new Map<string, Creator>();
       breadcrumbsData?.forEach((b: any) => {
         if (b.topic) {
           uniqueTopics.set(b.topic.id, b.topic);
+        }
+        if (b.creator) {
+          uniqueCreators.set(b.creator.id, b.creator);
         }
       });
 
       setBreadcrumbs(breadcrumbsData as any || []);
       setTopics(Array.from(uniqueTopics.values()));
+      setCreators(Array.from(uniqueCreators.values()));
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  const handleTalkToCreator = (creator: Creator) => {
+    setSelectedCreator(creator);
+    setChatOpen(true);
   };
 
   const handleAskQuestion = async () => {
@@ -329,6 +350,15 @@ export default function RecipientHome() {
 
   return (
     <DashboardLayout>
+      {/* Talk to Creator Chat Dialog */}
+      {selectedCreator && (
+        <TalkToCreatorChat
+          creator={selectedCreator}
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+        />
+      )}
+      
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-semibold text-white">
@@ -338,6 +368,38 @@ export default function RecipientHome() {
           Here are breadcrumbs that were left for you.
         </p>
       </div>
+      
+      {/* Talk to Creator Section */}
+      {creators.length > 0 && (
+        <div className="p-6 mb-8 rounded-xl bg-gradient-to-br from-rose-500/10 to-amber-500/10 backdrop-blur-sm border border-white/10">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-rose-100/20 text-rose-100 flex items-center justify-center">
+              <Heart className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-serif text-lg font-medium text-white mb-1">
+                Talk to Your Loved Ones
+              </h3>
+              <p className="text-sm text-white/60 mb-4">
+                Have a conversation with someone special. The AI will respond as them, using their breadcrumbs.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {creators.map((creator) => (
+                  <Button
+                    key={creator.id}
+                    variant="outline"
+                    onClick={() => handleTalkToCreator(creator)}
+                    className="bg-white/5 border-white/20 text-white hover:bg-white/10 hover:text-white"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    Talk to {creator.name.split(" ")[0]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Ask a Question - Family Scoped */}
       <div className="p-6 mb-8 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10">
