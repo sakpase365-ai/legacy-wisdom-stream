@@ -26,6 +26,7 @@ interface Breadcrumb {
   } | null;
   recipient_count?: number;
   recipient_names?: string[];
+  recipients_info?: { id: string; name: string }[];
 }
 interface Recipient {
   id: string;
@@ -83,25 +84,29 @@ export default function CreatorDashboard() {
       });
       if (breadcrumbsError) throw breadcrumbsError;
 
-      // Fetch recipient counts and names for each breadcrumb
+      // Fetch recipient counts, names, and IDs for each breadcrumb
       const breadcrumbIds = (breadcrumbsData || []).map(b => b.id);
-      let recipientData: Record<string, { count: number; names: string[] }> = {};
+      let recipientData: Record<string, { count: number; names: string[]; info: { id: string; name: string }[] }> = {};
       
       if (breadcrumbIds.length > 0) {
         const { data: recipientLinks } = await supabase
           .from("breadcrumb_recipients")
-          .select("breadcrumb_id, recipient:recipients(display_name)")
+          .select("breadcrumb_id, recipient:recipients(id, display_name)")
           .in("breadcrumb_id", breadcrumbIds);
         
         if (recipientLinks) {
           recipientLinks.forEach(link => {
             if (!recipientData[link.breadcrumb_id]) {
-              recipientData[link.breadcrumb_id] = { count: 0, names: [] };
+              recipientData[link.breadcrumb_id] = { count: 0, names: [], info: [] };
             }
             recipientData[link.breadcrumb_id].count++;
-            const recipientName = (link.recipient as any)?.display_name;
-            if (recipientName) {
-              recipientData[link.breadcrumb_id].names.push(recipientName);
+            const recipient = link.recipient as any;
+            if (recipient?.display_name) {
+              recipientData[link.breadcrumb_id].names.push(recipient.display_name);
+              recipientData[link.breadcrumb_id].info.push({ 
+                id: recipient.id, 
+                name: recipient.display_name 
+              });
             }
           });
         }
@@ -111,7 +116,8 @@ export default function CreatorDashboard() {
       const breadcrumbsWithCounts = (breadcrumbsData || []).map(b => ({
         ...b,
         recipient_count: recipientData[b.id]?.count || 1,
-        recipient_names: recipientData[b.id]?.names || []
+        recipient_names: recipientData[b.id]?.names || [],
+        recipients_info: recipientData[b.id]?.info || []
       }));
 
       const {
@@ -135,10 +141,16 @@ export default function CreatorDashboard() {
   };
   const filteredBreadcrumbs = breadcrumbs.filter(b => {
     const matchesSearch = !searchQuery || b.title.toLowerCase().includes(searchQuery.toLowerCase()) || b.text_body?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRecipient = selectedRecipient === "all" || b.recipient?.id === selectedRecipient;
+    const matchesRecipient = selectedRecipient === "all" || 
+      b.recipient?.id === selectedRecipient ||
+      b.recipients_info?.some(r => r.id === selectedRecipient);
     const matchesTopic = selectedTopic === "all" || b.topic?.id === selectedTopic;
     return matchesSearch && matchesRecipient && matchesTopic;
   });
+
+  const handleRecipientFilter = (recipientId: string) => {
+    setSelectedRecipient(recipientId);
+  };
   if (authLoading || isLoading) {
     return <DashboardLayout>
         <div className="flex items-center justify-center py-20">
@@ -237,7 +249,7 @@ export default function CreatorDashboard() {
               </p>
             </>}
         </div> : <div className="grid gap-4">
-          {filteredBreadcrumbs.map(breadcrumb => <BreadcrumbCard key={breadcrumb.id} breadcrumb={breadcrumb} showRecipient />)}
+          {filteredBreadcrumbs.map(breadcrumb => <BreadcrumbCard key={breadcrumb.id} breadcrumb={breadcrumb} showRecipient onRecipientClick={handleRecipientFilter} />)}
         </div>}
     </DashboardLayout>;
 }

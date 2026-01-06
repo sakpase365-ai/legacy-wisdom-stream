@@ -4,6 +4,11 @@ import { BookOpen, FileText, Mic, Link as LinkIcon, Image, Video, Calendar, User
 import { formatDistanceToNow } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+interface RecipientInfo {
+  id: string;
+  name: string;
+}
+
 interface BreadcrumbCardProps {
   breadcrumb: {
     id: string;
@@ -27,10 +32,12 @@ interface BreadcrumbCardProps {
     };
     recipient_count?: number;
     recipient_names?: string[];
+    recipients_info?: RecipientInfo[];
   };
   showRecipient?: boolean;
   showCreator?: boolean;
   style?: CSSProperties;
+  onRecipientClick?: (recipientId: string) => void;
 }
 
 const contentTypeIcons: Record<string, React.ReactNode> = {
@@ -43,7 +50,7 @@ const contentTypeIcons: Record<string, React.ReactNode> = {
   video: <Video className="w-4 h-4" />,
 };
 
-export function BreadcrumbCard({ breadcrumb, showRecipient, showCreator, style }: BreadcrumbCardProps) {
+export function BreadcrumbCard({ breadcrumb, showRecipient, showCreator, style, onRecipientClick }: BreadcrumbCardProps) {
   const icon = breadcrumb.is_scripture 
     ? contentTypeIcons.scripture 
     : contentTypeIcons[breadcrumb.content_type] || contentTypeIcons.text;
@@ -83,13 +90,28 @@ export function BreadcrumbCard({ breadcrumb, showRecipient, showCreator, style }
                           Family
                         </span>
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="font-medium mb-1">Shared with:</p>
-                        <ul className="text-xs space-y-0.5">
-                          {breadcrumb.recipient_names?.map((name, idx) => (
-                            <li key={idx}>{name}</li>
-                          )) || <li>Multiple recipients</li>}
-                        </ul>
+                      <TooltipContent className="p-0">
+                        <div className="p-2">
+                          <p className="font-medium mb-1 px-1">Shared with:</p>
+                          <ul className="text-xs space-y-0.5">
+                            {breadcrumb.recipients_info?.map((recipient) => (
+                              <li key={recipient.id}>
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    onRecipientClick?.(recipient.id);
+                                  }}
+                                  className="w-full text-left px-1 py-0.5 rounded hover:bg-accent hover:text-accent-foreground transition-colors"
+                                >
+                                  {recipient.name}
+                                </button>
+                              </li>
+                            )) || breadcrumb.recipient_names?.map((name, idx) => (
+                              <li key={idx} className="px-1">{name}</li>
+                            )) || <li className="px-1">Multiple recipients</li>}
+                          </ul>
+                        </div>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
