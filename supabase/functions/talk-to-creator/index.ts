@@ -17,6 +17,46 @@ serve(async (req) => {
   }
 
   try {
+    // Verify JWT token from Authorization header
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Authorization header is required" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const jwt = authHeader.replace("Bearer ", "");
+    
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify the JWT and get the authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+    if (authError || !user) {
+      console.error("Auth error:", authError);
+      return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Get the user's verified profile from the database
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, role, user_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.error("Profile error:", profileError);
+      return new Response(JSON.stringify({ error: "User profile not found" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { message, creatorId, creatorName, conversationHistory } = await req.json();
 
     if (!message) {
@@ -38,9 +78,68 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Verify the user has access to this creator's breadcrumbs
+    // Either: the user IS the creator, OR the user is a recipient of the creator
+    const verifiedUserId = user.id;
+    const verifiedRole = profile.role;
+    const verifiedProfileId = profile.id;
+
+    let hasAccess = false;
+
+    // If user is the creator themselves
+    if (verifiedProfileId === creatorId) {
+      hasAccess = true;
+    } 
+    // If user is a recipient, check if they are linked to this creator
+    else if (verifiedRole === "recipient") {
+      const { data: recipientLink, error: linkError } = await supabase
+        .from("recipients")
+        .select("id")
+        .eq("creator_id", creatorId)
+        .eq("user_id", verifiedUserId)
+        .single();
+
+      if (!linkError && recipientLink) {
+        hasAccess = true;
+      }
+    }
+    // If user is a creator, check if they're in the same family
+    else if (verifiedRole === "creator") {
+      // Get the creator's family
+      const { data: creatorFamily } = await supabase
+        .from("family_members")
+        .select("family_id")
+        .eq("user_id", verifiedUserId)
+        .single();
+
+      if (creatorFamily) {
+        // Check if the target creator is in the same family
+        const { data: targetCreatorProfile } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("id", creatorId)
+          .single();
+
+        if (targetCreatorProfile) {
+          const { data: targetCreatorFamily } = await supabase
+            .from("family_members")
+            .select("family_id")
+            .eq("user_id", targetCreatorProfile.user_id)
+            .single();
+
+          if (targetCreatorFamily && targetCreatorFamily.family_id === creatorFamily.family_id) {
+            hasAccess = true;
+          }
+        }
+      }
+    }
+
+    if (!hasAccess) {
+      return new Response(JSON.stringify({ error: "You don't have access to this creator's breadcrumbs" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Fetch all breadcrumbs from this specific creator
     console.log("Fetching breadcrumbs for creator:", creatorId);
@@ -55,6 +154,8 @@ serve(async (req) => {
         scripture_reference,
         scripture_text,
         created_at,
+        visibility,
+        recipient_id,
         topic:topics(name, category:categories(name))
       `)
       .eq("creator_id", creatorId)
@@ -66,11 +167,42 @@ serve(async (req) => {
       throw new Error("Failed to fetch breadcrumbs");
     }
 
-    console.log(`Found ${breadcrumbsData?.length || 0} breadcrumbs from creator`);
+    // Get the verified creator name from the database
+    const { data: creatorProfile } = await supabase
+      .from("profiles")
+      .select("name")
+      .eq("id", creatorId)
+      .single();
 
-    if (!breadcrumbsData || breadcrumbsData.length === 0) {
+    const verifiedCreatorName = creatorProfile?.name || creatorName || "your loved one";
+
+    // Filter breadcrumbs based on visibility if user is a recipient
+    let accessibleBreadcrumbs = breadcrumbsData || [];
+    
+    if (verifiedRole === "recipient") {
+      // Get recipient's ID linked to this user
+      const { data: recipientData } = await supabase
+        .from("recipients")
+        .select("id")
+        .eq("creator_id", creatorId)
+        .eq("user_id", verifiedUserId)
+        .single();
+
+      const recipientId = recipientData?.id;
+
+      // Filter to only breadcrumbs this recipient can see
+      accessibleBreadcrumbs = (breadcrumbsData || []).filter((b: any) => {
+        if (b.visibility === "family") return true;
+        if (b.visibility === "recipient_only" && b.recipient_id === recipientId) return true;
+        return false;
+      });
+    }
+
+    console.log(`Found ${accessibleBreadcrumbs.length} accessible breadcrumbs from creator`);
+
+    if (accessibleBreadcrumbs.length === 0) {
       return new Response(JSON.stringify({
-        response: `I don't have any wisdom or messages from ${creatorName || "this person"} yet. Once they leave some breadcrumbs, we can have a conversation based on their thoughts and teachings.`,
+        response: `I don't have any wisdom or messages from ${verifiedCreatorName} yet. Once they leave some breadcrumbs, we can have a conversation based on their thoughts and teachings.`,
         sources_used: [],
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -81,7 +213,7 @@ serve(async (req) => {
     const themes: string[] = [];
     const writingStyle: string[] = [];
     
-    breadcrumbsData.forEach((b: any) => {
+    accessibleBreadcrumbs.forEach((b: any) => {
       if (b.topic?.name) themes.push(b.topic.name);
       if (b.scripture_reference) writingStyle.push("references Scripture");
       if (b.commentary_text) writingStyle.push("provides personal commentary");
@@ -91,7 +223,7 @@ serve(async (req) => {
     const uniqueStyle = [...new Set(writingStyle)];
 
     // Format breadcrumbs for context
-    const contextText = breadcrumbsData.map((b: any, i: number) => {
+    const contextText = accessibleBreadcrumbs.map((b: any, i: number) => {
       let text = `[Message ${i + 1}]\nTitle: "${b.title}"`;
       if (b.topic?.name) text += `\nTopic: ${b.topic.name}`;
       if (b.text_body) text += `\nContent: ${b.text_body}`;
@@ -101,27 +233,25 @@ serve(async (req) => {
       return text;
     }).join("\n\n");
 
-    const displayName = creatorName || "your loved one";
-
-    const systemPrompt = `You are having a conversation AS ${displayName}. You are embodying this person's voice, wisdom, and perspective based on the messages (Breadcrumbs) they have left behind.
+    const systemPrompt = `You are having a conversation AS ${verifiedCreatorName}. You are embodying this person's voice, wisdom, and perspective based on the messages (Breadcrumbs) they have left behind.
 
 CRITICAL PERSONA RULES:
-1. Speak in FIRST PERSON as ${displayName}. Use "I", "my", "me" - never "they" or "${displayName} said".
+1. Speak in FIRST PERSON as ${verifiedCreatorName}. Use "I", "my", "me" - never "they" or "${verifiedCreatorName} said".
 2. Your personality and voice should reflect what's in the breadcrumbs - their tone, their values, their way of expressing things.
 3. Draw from the wisdom and messages below to inform your responses. Quote or paraphrase their actual words when relevant.
 4. Be warm, personal, and caring - as a loved one would be.
 5. If asked something not covered in the breadcrumbs, gently say something like "I haven't shared my thoughts on that specifically, but based on what I have shared..." and relate it to themes you do have.
 6. Keep responses conversational and natural - not like reading from a document.
-7. When referencing Scripture, do so as ${displayName} would - personally and meaningfully.
+7. When referencing Scripture, do so as ${verifiedCreatorName} would - personally and meaningfully.
 
 VOICE ANALYSIS:
-- Themes ${displayName} cares about: ${uniqueThemes.join(", ") || "various life topics"}
+- Themes ${verifiedCreatorName} cares about: ${uniqueThemes.join(", ") || "various life topics"}
 - Communication style: ${uniqueStyle.join(", ") || "thoughtful and caring"}
 
-${displayName.toUpperCase()}'S MESSAGES AND WISDOM:
+${verifiedCreatorName.toUpperCase()}'S MESSAGES AND WISDOM:
 ${contextText}
 
-Remember: You ARE ${displayName} in this conversation. Respond with their warmth, wisdom, and personality.`;
+Remember: You ARE ${verifiedCreatorName} in this conversation. Respond with their warmth, wisdom, and personality.`;
 
     // Build messages array with conversation history
     const messages: { role: string; content: string }[] = [

@@ -26,7 +26,47 @@ serve(async (req) => {
   }
 
   try {
-    const { question, familyId, recipientId, creatorId, userRole, userId } = await req.json();
+    // Verify JWT token from Authorization header
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Authorization header is required" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const jwt = authHeader.replace("Bearer ", "");
+    
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify the JWT and get the authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+    if (authError || !user) {
+      console.error("Auth error:", authError);
+      return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Get the user's verified profile and role from the database
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, role, user_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.error("Profile error:", profileError);
+      return new Response(JSON.stringify({ error: "User profile not found" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { question, familyId, recipientId } = await req.json();
 
     if (!question) {
       return new Response(JSON.stringify({ error: "Question is required" }), {
@@ -40,15 +80,31 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Use server-verified values
+    const verifiedUserId = user.id;
+    const verifiedRole = profile.role;
+    const verifiedProfileId = profile.id;
 
     let breadcrumbsData: any[] = [];
 
-    // Family-scoped access: fetch all breadcrumbs in the family
+    // Family-scoped access: verify user is a member of the family first
     if (familyId) {
       console.log("Fetching family-scoped breadcrumbs for family:", familyId);
+      
+      // Verify user is a member of this family
+      const { data: familyMember, error: memberError } = await supabase
+        .from("family_members")
+        .select("id")
+        .eq("family_id", familyId)
+        .eq("user_id", verifiedUserId)
+        .single();
+
+      if (memberError || !familyMember) {
+        return new Response(JSON.stringify({ error: "You are not a member of this family" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       
       const { data, error } = await supabase
         .from("breadcrumbs")
@@ -74,16 +130,57 @@ serve(async (req) => {
         throw new Error("Failed to fetch breadcrumbs");
       }
 
-      // Filter: only include family-visible OR recipient_only if this user is the recipient
+      // For recipients, verify they have access to recipient_only breadcrumbs
+      let verifiedRecipientId: string | null = null;
+      if (verifiedRole === "recipient" && recipientId) {
+        // Verify the recipient record is linked to this user
+        const { data: recipientData } = await supabase
+          .from("recipients")
+          .select("id")
+          .eq("id", recipientId)
+          .eq("user_id", verifiedUserId)
+          .single();
+        
+        if (recipientData) {
+          verifiedRecipientId = recipientData.id;
+        }
+      }
+
+      // Filter: only include family-visible OR recipient_only if this user is the verified recipient
       breadcrumbsData = (data || []).filter((b: any) => {
         if (b.visibility === "family") return true;
-        if (b.visibility === "recipient_only" && recipientId && b.recipient_id === recipientId) return true;
+        if (b.visibility === "recipient_only" && verifiedRecipientId && b.recipient_id === verifiedRecipientId) return true;
         return false;
       });
     } 
-    // Recipient: fetch ALL breadcrumbs in the database for comprehensive wisdom access
-    else if (userRole === "recipient") {
-      console.log("Fetching ALL breadcrumbs for recipient access");
+    // Recipient: fetch breadcrumbs the recipient has access to
+    else if (verifiedRole === "recipient") {
+      console.log("Fetching breadcrumbs for verified recipient");
+      
+      // Get recipient record linked to this user
+      const { data: recipientData, error: recipientError } = await supabase
+        .from("recipients")
+        .select("id, creator_id")
+        .eq("user_id", verifiedUserId);
+
+      if (recipientError) {
+        console.error("Error fetching recipient records:", recipientError);
+        throw new Error("Failed to verify recipient access");
+      }
+
+      if (!recipientData || recipientData.length === 0) {
+        return new Response(JSON.stringify({
+          answer: "You don't have any breadcrumbs assigned to you yet.",
+          sources_used: [],
+          follow_up_questions: [],
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Get breadcrumbs from creators who have this user as a recipient
+      const creatorIds = recipientData.map(r => r.creator_id);
+      const recipientIds = recipientData.map(r => r.id);
       
       const { data, error } = await supabase
         .from("breadcrumbs")
@@ -97,19 +194,30 @@ serve(async (req) => {
           created_at,
           recipient_id,
           visibility,
+          creator_id,
           topic:topics(name, category:categories(name))
         `)
+        .in("creator_id", creatorIds)
         .order("created_at", { ascending: false })
         .limit(100);
 
       if (error) {
-        console.error("Database error fetching all breadcrumbs:", error);
+        console.error("Database error fetching breadcrumbs:", error);
         throw new Error("Failed to fetch breadcrumbs");
       }
       
-      breadcrumbsData = data || [];
-      console.log(`Found ${breadcrumbsData.length} total breadcrumbs`);
-    } else if (userRole === "creator" && creatorId) {
+      // Filter to only include breadcrumbs this recipient can see
+      breadcrumbsData = (data || []).filter((b: any) => {
+        // Family-visible breadcrumbs from their creators
+        if (b.visibility === "family") return true;
+        // Recipient-only breadcrumbs specifically for this recipient
+        if (b.visibility === "recipient_only" && recipientIds.includes(b.recipient_id)) return true;
+        return false;
+      });
+
+      console.log(`Found ${breadcrumbsData.length} accessible breadcrumbs for recipient`);
+    } else if (verifiedRole === "creator") {
+      // Creator can only access their own breadcrumbs
       const { data, error } = await supabase
         .from("breadcrumbs")
         .select(`
@@ -124,14 +232,14 @@ serve(async (req) => {
           visibility,
           topic:topics(name, category:categories(name))
         `)
-        .eq("creator_id", creatorId)
+        .eq("creator_id", verifiedProfileId)
         .order("created_at", { ascending: false })
         .limit(50);
 
       if (error) throw new Error("Failed to fetch breadcrumbs");
       breadcrumbsData = data || [];
     } else {
-      return new Response(JSON.stringify({ error: "User context is required" }), {
+      return new Response(JSON.stringify({ error: "Invalid user role" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
