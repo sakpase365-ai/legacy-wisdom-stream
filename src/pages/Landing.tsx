@@ -10,7 +10,7 @@ const Landing = () => {
       <div className="flex min-h-screen flex-col items-center justify-center px-6 py-12">
         {/* Main heading */}
         <h1 className="mb-6 text-center text-5xl font-light tracking-tight text-foreground md:text-6xl lg:text-7xl">
-          <TypewriterText text="Breadcrumbs" speed={0.1} showCursor={false} />
+          <TypewriterText text="Breadcrumbs..." speed={0.1} showCursor={false} />
         </h1>
 
         {/* Tagline */}
