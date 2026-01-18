@@ -10,15 +10,15 @@ const Landing = () => {
       <div className="flex min-h-screen flex-col items-center justify-center px-6 py-12">
         {/* Main heading */}
         <h1 className="mb-6 text-center text-5xl font-light tracking-tight text-foreground md:text-6xl lg:text-7xl">
-          <TypewriterText text="Breadcrumbs" speed={0.14} showCursor={false} />
+          <TypewriterText text="Breadcrumbs" speed={0.1} showCursor={false} />
         </h1>
 
         {/* Tagline */}
         <p className="mb-12 max-w-lg text-center text-lg font-light text-muted-foreground md:text-xl">
           <TypewriterText 
             text="Preserve your wisdom. Let it keep speaking." 
-            delay={2} 
-            speed={0.06} 
+            delay={1.5} 
+            speed={0.045} 
           />
         </p>
 
@@ -26,7 +26,7 @@ const Landing = () => {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 5, duration: 0.5 }}
+          transition={{ delay: 4, duration: 0.5 }}
         >
           <Link to="/get-started">
             <Button 
