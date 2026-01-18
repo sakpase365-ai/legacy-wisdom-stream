@@ -11,6 +11,7 @@ import { SwipeableCard } from "@/components/SwipeableCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
+import { QuickCaptureButton } from "@/components/QuickCaptureButton";
 
 interface Breadcrumb {
   id: string;
@@ -55,6 +56,7 @@ export default function CreatorDashboard() {
   const [selectedRecipient, setSelectedRecipient] = useState<string>("all");
   const [selectedTopic, setSelectedTopic] = useState<string>("all");
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [familyId, setFamilyId] = useState<string | undefined>(undefined);
   
   useEffect(() => {
     if (!authLoading && !profile) {
@@ -136,6 +138,13 @@ export default function CreatorDashboard() {
         error: topicsError
       } = await supabase.from("topics").select("id, name").eq("is_active", true).order("sort_order");
       if (topicsError) throw topicsError;
+
+      // Fetch family ID
+      const { data: familyData } = await supabase.rpc("get_user_family_id", { _user_id: profile.user_id });
+      if (familyData) {
+        setFamilyId(familyData);
+      }
+
       setBreadcrumbs(breadcrumbsWithCounts as any || []);
       setRecipients(recipientsData || []);
       setTopics(topicsData || []);
@@ -319,5 +328,15 @@ export default function CreatorDashboard() {
             )
           ))}
         </div>}
+
+      {/* Quick Capture Floating Button */}
+      {profile && recipients.length > 0 && (
+        <QuickCaptureButton
+          recipients={recipients}
+          creatorId={profile.id}
+          familyId={familyId}
+          onSuccess={fetchData}
+        />
+      )}
     </DashboardLayout>;
 }
