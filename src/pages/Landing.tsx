@@ -10,15 +10,15 @@ const Landing = () => {
       <div className="flex min-h-screen flex-col items-center justify-center px-6 py-12">
         {/* Main heading */}
         <h1 className="mb-6 text-center text-5xl font-light tracking-tight text-foreground md:text-6xl lg:text-7xl">
-          <TypewriterText text="Breadcrumbs" speed={0.08} />
+          <TypewriterText text="Breadcrumbs" speed={0.12} showCursor={false} />
         </h1>
 
         {/* Tagline */}
         <p className="mb-12 max-w-lg text-center text-lg font-light text-muted-foreground md:text-xl">
           <TypewriterText 
             text="Preserve your wisdom. Let it keep speaking." 
-            delay={1} 
-            speed={0.03} 
+            delay={1.5} 
+            speed={0.05} 
           />
         </p>
 
