@@ -14,9 +14,9 @@
 
 @layer base {
   :root {
-    /* Warm cream/ivory palette */
-    --background: 40 33% 97%;
-    --foreground: 25 30% 15%;
+    /* Dark theme */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 95%;
 
     --card: 40 30% 99%;
     --card-foreground: 25 30% 15%;
