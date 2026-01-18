@@ -34,7 +34,7 @@ const Landing = () => {
         {/* Tagline */}
         <p className="mb-12 max-w-lg text-center text-lg font-light text-muted-foreground md:text-xl">
           <TypewriterText 
-            text="Preserve your wisdom. Let it keep speaking." 
+            text="Preserve your wisdom. For generations to come." 
             delay={1.5} 
             speed={0.045} 
           />
