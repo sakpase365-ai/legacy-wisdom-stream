@@ -16,8 +16,14 @@ const Landing = () => {
               <motion.span
                 key={i}
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.1 + i * 0.3, duration: 0.01 }}
+                animate={{ opacity: [0, 1, 1, 0.4, 1] }}
+                transition={{ 
+                  delay: 1.1 + i * 0.3, 
+                  duration: 2,
+                  times: [0, 0.1, 0.5, 0.75, 1],
+                  repeat: Infinity,
+                  repeatDelay: 0.5
+                }}
               >
                 .
               </motion.span>
