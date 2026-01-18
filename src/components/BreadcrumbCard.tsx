@@ -41,13 +41,13 @@ interface BreadcrumbCardProps {
 }
 
 const contentTypeIcons: Record<string, React.ReactNode> = {
-  text: <FileText className="w-4 h-4" />,
-  scripture: <BookOpen className="w-4 h-4" />,
-  voice_note: <Mic className="w-4 h-4" />,
-  document: <FileText className="w-4 h-4" />,
-  link: <LinkIcon className="w-4 h-4" />,
-  photo: <Image className="w-4 h-4" />,
-  video: <Video className="w-4 h-4" />,
+  text: <FileText className="w-4 h-4 text-white" />,
+  scripture: <BookOpen className="w-4 h-4 text-white" />,
+  voice_note: <Mic className="w-4 h-4 text-white" />,
+  document: <FileText className="w-4 h-4 text-white" />,
+  link: <LinkIcon className="w-4 h-4 text-white" />,
+  photo: <Image className="w-4 h-4 text-white" />,
+  video: <Video className="w-4 h-4 text-white" />,
 };
 
 export function BreadcrumbCard({ breadcrumb, showRecipient, showCreator, style, onRecipientClick }: BreadcrumbCardProps) {
@@ -70,7 +70,7 @@ export function BreadcrumbCard({ breadcrumb, showRecipient, showCreator, style, 
       <div className="glass-card p-5 hover:border-accent/50 hover:shadow-warm transition-all duration-300 group">
         <div className="flex items-start gap-4">
           {/* Icon */}
-          <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
+          <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-black flex items-center justify-center group-hover:bg-accent transition-colors">
             {icon}
           </div>
 
