@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.talk-to-creator]
 verify_jwt = false
+
+[functions.capture-breadcrumb]
+verify_jwt = false
