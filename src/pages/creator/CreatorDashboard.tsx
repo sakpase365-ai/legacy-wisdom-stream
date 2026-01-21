@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Users, Search, Filter, Loader2, Sparkles } from "lucide-react";
+import { Plus, Users, Search, Filter, Loader2, Sparkles, TrendingUp } from "lucide-react";
 import { BreadcrumbCard } from "@/components/BreadcrumbCard";
 import { SwipeableCard } from "@/components/SwipeableCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -225,11 +225,17 @@ export default function CreatorDashboard() {
             {breadcrumbs.length === 0 ? "Start leaving breadcrumbs for your loved ones." : `You've left ${breadcrumbs.length} breadcrumb${breadcrumbs.length === 1 ? "" : "s"}.`}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3">
+          <Link to="/creator/progress">
+            <Button variant="outline" className="gap-2 border-amber-200/30 text-amber-100 hover:bg-amber-100/10">
+              <TrendingUp className="w-4 h-4" />
+              <span className="hidden sm:inline">Progress</span>
+            </Button>
+          </Link>
           <Link to="/creator/prompts">
             <Button variant="outline" className="gap-2 border-amber-200/30 text-amber-100 hover:bg-amber-100/10">
               <Sparkles className="w-4 h-4" />
-              <span className="hidden sm:inline">Get Prompted</span>
+              <span className="hidden sm:inline">Prompts</span>
             </Button>
           </Link>
           <Link to="/creator/recipients">
