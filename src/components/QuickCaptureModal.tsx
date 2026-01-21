@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { updateStreak, checkAchievements } from "@/hooks/useCreatorProgress";
 
 interface QuickCaptureModalProps {
   open: boolean;
@@ -290,6 +291,60 @@ export function QuickCaptureModal({
           recipient_id: recipientId,
         }));
         await supabase.from("breadcrumb_recipients").insert(recipientLinks);
+      }
+
+      // Update streak and check achievements
+      await updateStreak(creatorId);
+      
+      // Get stats for achievement checking
+      const { count: totalCount } = await supabase
+        .from("breadcrumbs")
+        .select("*", { count: "exact", head: true })
+        .eq("creator_id", creatorId);
+
+      const { count: scriptureCount } = await supabase
+        .from("breadcrumbs")
+        .select("*", { count: "exact", head: true })
+        .eq("creator_id", creatorId)
+        .eq("is_scripture", true);
+
+      const { data: streakData } = await supabase
+        .from("creator_streaks")
+        .select("current_streak")
+        .eq("profile_id", creatorId)
+        .single();
+
+      const { data: topicsData } = await supabase
+        .from("topics")
+        .select("id")
+        .eq("is_active", true);
+
+      const { data: coveredTopics } = await supabase
+        .from("breadcrumbs")
+        .select("topic_id")
+        .eq("creator_id", creatorId)
+        .not("topic_id", "is", null);
+
+      const uniqueTopics = new Set((coveredTopics || []).map((b: any) => b.topic_id));
+
+      const { data: recipientsWithBreadcrumbs } = await supabase
+        .from("breadcrumb_recipients")
+        .select("recipient_id, breadcrumb:breadcrumbs!inner(creator_id)")
+        .eq("breadcrumb.creator_id", creatorId);
+
+      const uniqueRecipients = new Set((recipientsWithBreadcrumbs || []).map((r: any) => r.recipient_id));
+
+      const newAchievements = await checkAchievements(creatorId, {
+        total: totalCount || 0,
+        scriptures: scriptureCount || 0,
+        streak: streakData?.current_streak || 0,
+        topicsCovered: uniqueTopics.size,
+        totalTopics: (topicsData || []).length,
+        recipientsWithBreadcrumbs: uniqueRecipients.size,
+      });
+
+      if (newAchievements.length > 0) {
+        toast.success(`🏆 Achievement Unlocked: ${newAchievements.join(", ")}`);
       }
 
       toast.success("Breadcrumb saved!");

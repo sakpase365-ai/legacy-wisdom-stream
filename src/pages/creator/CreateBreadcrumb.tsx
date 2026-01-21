@@ -14,6 +14,7 @@ import { VoiceRecorder } from "@/components/VoiceRecorder";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { updateStreak, checkAchievements } from "@/hooks/useCreatorProgress";
 
 interface Recipient {
   id: string;
@@ -318,6 +319,65 @@ export default function CreateBreadcrumb() {
           if (scriptureError) {
             console.error("Error saving scriptures:", scriptureError);
           }
+        }
+      }
+
+      // Update streak and check achievements
+      if (profile?.id) {
+        await updateStreak(profile.id);
+        
+        // Get stats for achievement checking
+        const { count: totalCount } = await supabase
+          .from("breadcrumbs")
+          .select("*", { count: "exact", head: true })
+          .eq("creator_id", profile.id);
+
+        const { count: scriptureCount } = await supabase
+          .from("breadcrumbs")
+          .select("*", { count: "exact", head: true })
+          .eq("creator_id", profile.id)
+          .eq("is_scripture", true);
+
+        const { data: streakData } = await supabase
+          .from("creator_streaks")
+          .select("current_streak")
+          .eq("profile_id", profile.id)
+          .single();
+
+        const { data: topicsData } = await supabase
+          .from("topics")
+          .select("id")
+          .eq("is_active", true);
+
+        const { data: coveredTopics } = await supabase
+          .from("breadcrumbs")
+          .select("topic_id")
+          .eq("creator_id", profile.id)
+          .not("topic_id", "is", null);
+
+        const uniqueTopics = new Set((coveredTopics || []).map((b: any) => b.topic_id));
+
+        const { data: recipientsWithBreadcrumbs } = await supabase
+          .from("breadcrumb_recipients")
+          .select("recipient_id, breadcrumb:breadcrumbs!inner(creator_id)")
+          .eq("breadcrumb.creator_id", profile.id);
+
+        const uniqueRecipients = new Set((recipientsWithBreadcrumbs || []).map((r: any) => r.recipient_id));
+
+        const newAchievements = await checkAchievements(profile.id, {
+          total: totalCount || 0,
+          scriptures: scriptureCount || 0,
+          streak: streakData?.current_streak || 0,
+          topicsCovered: uniqueTopics.size,
+          totalTopics: (topicsData || []).length,
+          recipientsWithBreadcrumbs: uniqueRecipients.size,
+        });
+
+        if (newAchievements.length > 0) {
+          toast({
+            title: "🏆 Achievement Unlocked!",
+            description: newAchievements.join(", "),
+          });
         }
       }
 
