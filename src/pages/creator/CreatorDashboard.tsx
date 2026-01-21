@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Users, Search, Filter, Loader2 } from "lucide-react";
+import { Plus, Users, Search, Filter, Loader2, Sparkles } from "lucide-react";
 import { BreadcrumbCard } from "@/components/BreadcrumbCard";
 import { SwipeableCard } from "@/components/SwipeableCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -226,6 +226,12 @@ export default function CreatorDashboard() {
           </p>
         </div>
         <div className="flex gap-3">
+          <Link to="/creator/prompts">
+            <Button variant="outline" className="gap-2 border-amber-200/30 text-amber-100 hover:bg-amber-100/10">
+              <Sparkles className="w-4 h-4" />
+              <span className="hidden sm:inline">Get Prompted</span>
+            </Button>
+          </Link>
           <Link to="/creator/recipients">
             <Button className="gap-2 bg-amber-100 text-amber-950 hover:bg-amber-200">
               <Users className="w-4 h-4" />

@@ -20,6 +20,8 @@ interface QuickCaptureModalProps {
   recipients: { id: string; display_name: string }[];
   creatorId: string;
   familyId?: string;
+  initialPrompt?: string;
+  initialTags?: string[];
 }
 
 interface StructuredBreadcrumb {
@@ -41,11 +43,14 @@ export function QuickCaptureModal({
   onSuccess,
   recipients,
   creatorId,
-  familyId
+  familyId,
+  initialPrompt,
+  initialTags
 }: QuickCaptureModalProps) {
   const [step, setStep] = useState<Step>("input");
   const [inputType, setInputType] = useState<"text" | "voice">("text");
   const [textContent, setTextContent] = useState("");
+  const [promptContext, setPromptContext] = useState<string | null>(null);
   
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -80,12 +85,17 @@ export function QuickCaptureModal({
   useEffect(() => {
     if (!open) {
       resetState();
+    } else if (initialPrompt) {
+      // Set initial prompt context when modal opens with a prompt
+      setPromptContext(initialPrompt);
+      setInputType("voice"); // Default to voice for prompts
     }
-  }, [open]);
+  }, [open, initialPrompt]);
 
   const resetState = () => {
     setStep("input");
     setTextContent("");
+    setPromptContext(null);
     setAudioBlob(null);
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     setAudioUrl(null);
@@ -325,6 +335,13 @@ export function QuickCaptureModal({
         {/* Step: Input */}
         {step === "input" && (
           <div className="space-y-4">
+            {/* Show prompt context if available */}
+            {promptContext && (
+              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <p className="text-sm text-muted-foreground mb-1">Recording prompt:</p>
+                <p className="text-foreground font-medium">{promptContext}</p>
+              </div>
+            )}
             <Tabs value={inputType} onValueChange={(v) => setInputType(v as "text" | "voice")}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="text">Text</TabsTrigger>
