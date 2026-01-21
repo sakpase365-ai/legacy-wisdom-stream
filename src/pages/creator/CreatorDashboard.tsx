@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { QuickCaptureButton } from "@/components/QuickCaptureButton";
+import { ProgressSummaryWidget } from "@/components/gamification/ProgressSummaryWidget";
 
 interface Breadcrumb {
   id: string;
@@ -251,6 +252,11 @@ export default function CreatorDashboard() {
             </Button>
           </Link>
         </div>
+      </div>
+
+      {/* Progress Summary Widget */}
+      <div className="mb-6">
+        <ProgressSummaryWidget profileId={profile?.id} />
       </div>
 
       {/* Filters */}
