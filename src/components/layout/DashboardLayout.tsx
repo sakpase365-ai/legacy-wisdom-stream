@@ -78,7 +78,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       <DropdownMenuItem
                         key={r.id}
                         onClick={() => navigate(`/creator/recipients`)}
-                        className="gap-2 cursor-pointer"
+                        className="gap-2 cursor-pointer text-xs"
                       >
                         <User className="w-4 h-4" />
                         {r.display_name}
@@ -87,7 +87,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     {recipients.length > 0 && <DropdownMenuSeparator />}
                     <DropdownMenuItem
                       onClick={() => navigate("/creator/recipients")}
-                      className="gap-2 cursor-pointer"
+                      className="gap-2 cursor-pointer text-xs"
                     >
                       <Plus className="w-4 h-4" />
                       Manage Recipients
