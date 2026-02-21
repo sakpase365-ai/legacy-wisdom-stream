@@ -244,9 +244,11 @@ export function QuickCaptureModal({
       if (audioBlob) {
         const fileName = `${creatorId}/${Date.now()}.webm`;
         const { error: uploadError } = await supabase.storage
-          .from("voice-notes")
+          .from("audio")
           .upload(fileName, audioBlob);
-        if (!uploadError) {
+        if (uploadError) {
+          console.error("Audio upload error:", uploadError);
+        } else {
           audioPath = fileName;
         }
       }
@@ -274,6 +276,7 @@ export function QuickCaptureModal({
           content_type: inputType === "voice" ? "voice_note" : "text",
           text_body: inputType === "text" ? textContent : structured.summary,
           audio_url: audioPath,
+          topic_id: topicId,
           tags: structured.tags,
           visibility: "family",
           is_scripture: structured.references.length > 0,
@@ -521,88 +524,91 @@ export function QuickCaptureModal({
 
         {/* Step: Preview */}
         {step === "preview" && structured && (
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-            {/* Editable title */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                Title <Edit2 className="w-3 h-3 text-muted-foreground" />
-              </Label>
-              <Input
-                value={editedTitle}
-                onChange={(e) => setEditedTitle(e.target.value)}
-                className="font-medium bg-secondary/50"
-              />
-            </div>
-
-            {/* Summary */}
-            <div className="space-y-2">
-              <Label>Summary</Label>
-              <p className="text-sm text-muted-foreground bg-secondary/30 p-3 rounded-lg">
-                {structured.summary}
-              </p>
-            </div>
-
-            {/* Key Points */}
-            <div className="space-y-2">
-              <Label>Key Points</Label>
-              <ul className="text-sm space-y-1">
-                {structured.key_points.map((point, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="text-primary">•</span>
-                    <span className="text-muted-foreground">{point}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Tags */}
-            <div className="space-y-2">
-              <Label>Tags</Label>
-              <div className="flex flex-wrap gap-1">
-                {structured.tags.map((tag, i) => (
-                  <Badge key={i} variant="secondary" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            {/* Topics */}
-            <div className="space-y-2">
-              <Label>Topics</Label>
-              <div className="flex flex-wrap gap-1">
-                {structured.topics.map((topic, i) => (
-                  <Badge key={i} variant="outline" className="text-xs">
-                    {topic}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            {/* References */}
-            {structured.references.length > 0 && (
+          <div className="space-y-4">
+            {/* Scrollable content */}
+            <div className="max-h-[40vh] overflow-y-auto space-y-4 pr-1">
+              {/* Editable title */}
               <div className="space-y-2">
-                <Label>References</Label>
+                <Label className="flex items-center gap-2">
+                  Title <Edit2 className="w-3 h-3 text-muted-foreground" />
+                </Label>
+                <Input
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  className="font-medium bg-secondary/50"
+                />
+              </div>
+
+              {/* Summary */}
+              <div className="space-y-2">
+                <Label>Summary</Label>
+                <p className="text-sm text-muted-foreground bg-secondary/30 p-3 rounded-lg">
+                  {structured.summary}
+                </p>
+              </div>
+
+              {/* Key Points */}
+              <div className="space-y-2">
+                <Label>Key Points</Label>
+                <ul className="text-sm space-y-1">
+                  {structured.key_points.map((point, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-primary">•</span>
+                      <span className="text-muted-foreground">{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Tags */}
+              <div className="space-y-2">
+                <Label>Tags</Label>
                 <div className="flex flex-wrap gap-1">
-                  {structured.references.map((ref, i) => (
-                    <Badge key={i} variant="outline" className="text-xs bg-amber-500/10 border-amber-500/30">
-                      {ref}
+                  {structured.tags.map((tag, i) => (
+                    <Badge key={i} variant="secondary" className="text-xs">
+                      {tag}
                     </Badge>
                   ))}
                 </div>
               </div>
-            )}
 
-            {/* Sensitivity warning */}
-            {structured.is_sensitive && (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm">
-                <p className="font-medium text-amber-200">⚠️ Sensitive Content</p>
-                <p className="text-amber-200/70">{structured.sensitivity_reason}</p>
+              {/* Topics */}
+              <div className="space-y-2">
+                <Label>Topics</Label>
+                <div className="flex flex-wrap gap-1">
+                  {structured.topics.map((topic, i) => (
+                    <Badge key={i} variant="outline" className="text-xs">
+                      {topic}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            )}
 
-            {/* Recipients */}
-            <div className="space-y-2">
+              {/* References */}
+              {structured.references.length > 0 && (
+                <div className="space-y-2">
+                  <Label>References</Label>
+                  <div className="flex flex-wrap gap-1">
+                    {structured.references.map((ref, i) => (
+                      <Badge key={i} variant="outline" className="text-xs bg-amber-500/10 border-amber-500/30">
+                        {ref}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sensitivity warning */}
+              {structured.is_sensitive && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm">
+                  <p className="font-medium text-amber-200">⚠️ Sensitive Content</p>
+                  <p className="text-amber-200/70">{structured.sensitivity_reason}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Recipients - always visible */}
+            <div className="space-y-2 border-t border-border pt-4">
               <Label>Recipients</Label>
               <div className="flex flex-wrap gap-2">
                 {recipients.map(r => (
@@ -617,9 +623,12 @@ export function QuickCaptureModal({
                   </Badge>
                 ))}
               </div>
+              {selectedRecipients.length === 0 && (
+                <p className="text-xs text-destructive">Please select at least one recipient</p>
+              )}
             </div>
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-3 pt-2">
               <Button variant="outline" className="flex-1" onClick={() => setStep("input")}>
                 Back
               </Button>
