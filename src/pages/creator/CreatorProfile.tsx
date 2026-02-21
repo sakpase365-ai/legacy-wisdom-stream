@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { MinimalLayout } from "@/components/layout/MinimalLayout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -383,16 +383,16 @@ const CreatorProfile = () => {
 
   if (authLoading) {
     return (
-      <MinimalLayout centered>
+      <DashboardLayout>
         <div className="flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-white/60" />
         </div>
-      </MinimalLayout>
+      </DashboardLayout>
     );
   }
 
   return (
-    <MinimalLayout maxWidth="md">
+    <DashboardLayout>
       <div className="py-8">
         {/* Header */}
         <div className="text-center mb-10">
@@ -682,7 +682,7 @@ const CreatorProfile = () => {
           )}
         </Button>
       </div>
-    </MinimalLayout>
+    </DashboardLayout>
   );
 };
 
