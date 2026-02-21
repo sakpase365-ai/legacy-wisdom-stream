@@ -240,12 +240,7 @@ export default function CreatorDashboard() {
               <span className="hidden sm:inline">Prompts</span>
             </Button>
           </Link>
-          <Link to="/creator/recipients">
-            <Button className="gap-2 bg-white text-black hover:bg-white/90">
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Recipients</span>
-            </Button>
-          </Link>
+          
           <Link to="/creator/create">
             <Button className="gap-2 bg-white text-black hover:bg-white/90">
               <Plus className="w-4 h-4" />

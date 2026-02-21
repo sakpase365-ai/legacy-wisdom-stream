@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogOut, Settings, User, Globe, ChevronRight } from "lucide-react";
+import { LogOut, Settings, User, Globe, ChevronRight, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,19 +45,34 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               Breadcrumbs
             </Link>
 
-            {/* User Menu */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="gap-2 text-muted-foreground hover:text-foreground"
-                >
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="w-4 h-4 text-primary" />
-                  </div>
-                </Button>
-              </SheetTrigger>
+            {/* Right side actions */}
+            <div className="flex items-center gap-2">
+              {profile?.role === "creator" && (
+                <Link to="/creator/recipients">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <Users className="w-4 h-4" />
+                    <span className="hidden sm:inline text-sm">Recipients</span>
+                  </Button>
+                </Link>
+              )}
+
+              {/* User Menu */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-4 h-4 text-primary" />
+                    </div>
+                  </Button>
+                </SheetTrigger>
               <SheetContent side="right" className="w-80 p-0">
                 <SheetHeader className="p-6 pb-4 border-b border-border">
                   <div className="flex items-center gap-3">
@@ -123,6 +138,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </div>
               </SheetContent>
             </Sheet>
+            </div>
           </div>
         </div>
       </header>
