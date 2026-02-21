@@ -284,7 +284,7 @@ export default function CreatorDashboard() {
               </SelectTrigger>
               <SelectContent className="bg-black/90 border-white/20">
                 <SelectItem value="all" className="text-white">All Topics</SelectItem>
-                {topics.map(t => <SelectItem key={t.id} value={t.id} className="text-white">
+                {[...topics].sort((a, b) => a.name.localeCompare(b.name)).map(t => <SelectItem key={t.id} value={t.id} className="text-white">
                     {t.name}
                   </SelectItem>)}
               </SelectContent>
