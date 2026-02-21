@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Users, Search, Filter, Loader2, Sparkles, TrendingUp, User, ChevronRight } from "lucide-react";
+import { Plus, Users, Search, Filter, Loader2, Sparkles, TrendingUp, User, ChevronRight, ChevronDown } from "lucide-react";
 import { BreadcrumbCard } from "@/components/BreadcrumbCard";
 import { SwipeableCard } from "@/components/SwipeableCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -58,6 +58,7 @@ export default function CreatorDashboard() {
   const [selectedTopic, setSelectedTopic] = useState<string>("all");
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [familyId, setFamilyId] = useState<string | undefined>(undefined);
+  const [breadcrumbsOpen, setBreadcrumbsOpen] = useState(false);
   
   useEffect(() => {
     if (!authLoading && !profile) {
@@ -339,56 +340,69 @@ export default function CreatorDashboard() {
 
       {/* Breadcrumbs List */}
       <div className="rounded-xl bg-black/40 backdrop-blur-sm border border-white/10 p-4 sm:p-6">
-        <h2 className="font-serif text-lg font-medium text-white mb-4">Your Breadcrumbs</h2>
-        {filteredBreadcrumbs.length === 0 ? <div className="text-center py-12">
-          {breadcrumbs.length === 0 ? <>
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/10 flex items-center justify-center">
-                <Plus className="w-8 h-8 text-white/60" />
-              </div>
-              <h3 className="font-serif text-xl font-medium text-white mb-2">
-                No breadcrumbs yet
-              </h3>
-              <p className="text-white/60 mb-6 max-w-sm mx-auto">
-                {recipients.length === 0 ? "Add a recipient first, then start leaving wisdom for them." : "Start leaving wisdom, stories, and scriptures for your loved ones."}
-              </p>
-              <Link to={recipients.length === 0 ? "/creator/recipients" : "/creator/create"}>
-                <Button className="bg-amber-100 text-amber-950 hover:bg-amber-200">
-                  {recipients.length === 0 ? "Add a Recipient" : "Create Your First Breadcrumb"}
-                </Button>
-              </Link>
-            </> : <>
-              <Filter className="w-12 h-12 mx-auto mb-4 text-white/60" />
-              <h3 className="font-serif text-xl font-medium text-white mb-2">
-                No matching breadcrumbs
-              </h3>
-              <p className="text-white/60">
-                Try adjusting your filters or search query.
-              </p>
-            </>}
-        </div> : <div className="grid gap-3 sm:gap-4">
-          {filteredBreadcrumbs.map(breadcrumb => (
-            isMobile ? (
-              <SwipeableCard 
-                key={breadcrumb.id} 
-                onDelete={() => handleDeleteBreadcrumb(breadcrumb.id)}
-                disabled={deletingIds.has(breadcrumb.id)}
-              >
-                <BreadcrumbCard 
-                  breadcrumb={breadcrumb} 
-                  showRecipient 
-                  onRecipientClick={handleRecipientFilter} 
-                />
-              </SwipeableCard>
-            ) : (
-              <BreadcrumbCard 
-                key={breadcrumb.id} 
-                breadcrumb={breadcrumb} 
-                showRecipient 
-                onRecipientClick={handleRecipientFilter} 
-              />
-            )
-          ))}
-        </div>}
+        <button
+          onClick={() => setBreadcrumbsOpen(!breadcrumbsOpen)}
+          className="w-full flex items-center justify-between"
+        >
+          <h2 className="font-serif text-lg font-medium text-white">
+            Your Breadcrumbs
+            <span className="ml-2 text-sm font-normal text-white/40">({filteredBreadcrumbs.length})</span>
+          </h2>
+          <ChevronDown className={`w-5 h-5 text-white/60 transition-transform duration-200 ${breadcrumbsOpen ? "rotate-180" : ""}`} />
+        </button>
+        {breadcrumbsOpen && (
+          <div className="mt-4">
+            {filteredBreadcrumbs.length === 0 ? <div className="text-center py-12">
+              {breadcrumbs.length === 0 ? <>
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/10 flex items-center justify-center">
+                    <Plus className="w-8 h-8 text-white/60" />
+                  </div>
+                  <h3 className="font-serif text-xl font-medium text-white mb-2">
+                    No breadcrumbs yet
+                  </h3>
+                  <p className="text-white/60 mb-6 max-w-sm mx-auto">
+                    {recipients.length === 0 ? "Add a recipient first, then start leaving wisdom for them." : "Start leaving wisdom, stories, and scriptures for your loved ones."}
+                  </p>
+                  <Link to={recipients.length === 0 ? "/creator/recipients" : "/creator/create"}>
+                    <Button className="bg-white text-black hover:bg-white/90">
+                      {recipients.length === 0 ? "Add a Recipient" : "Create Your First Breadcrumb"}
+                    </Button>
+                  </Link>
+                </> : <>
+                  <Filter className="w-12 h-12 mx-auto mb-4 text-white/60" />
+                  <h3 className="font-serif text-xl font-medium text-white mb-2">
+                    No matching breadcrumbs
+                  </h3>
+                  <p className="text-white/60">
+                    Try adjusting your filters or search query.
+                  </p>
+                </>}
+            </div> : <div className="grid gap-3 sm:gap-4">
+              {filteredBreadcrumbs.map(breadcrumb => (
+                isMobile ? (
+                  <SwipeableCard 
+                    key={breadcrumb.id} 
+                    onDelete={() => handleDeleteBreadcrumb(breadcrumb.id)}
+                    disabled={deletingIds.has(breadcrumb.id)}
+                  >
+                    <BreadcrumbCard 
+                      breadcrumb={breadcrumb} 
+                      showRecipient 
+                      onRecipientClick={handleRecipientFilter} 
+                    />
+                  </SwipeableCard>
+                ) : (
+                  <BreadcrumbCard 
+                    key={breadcrumb.id} 
+                    breadcrumb={breadcrumb} 
+                    showRecipient 
+                    onRecipientClick={handleRecipientFilter} 
+                  />
+                )
+              ))}
+            </div>}
+          </div>
+        )}
       </div>
 
       {/* Quick Capture Floating Button */}
