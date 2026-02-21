@@ -167,7 +167,7 @@ const CreatorProfile = () => {
           custom_relationship: !RELATIONSHIP_OPTIONS.includes(r.relationship || "") 
             ? r.relationship || "" 
             : "",
-          date_of_birth: r.date_of_birth ? new Date(r.date_of_birth) : null,
+          date_of_birth: r.date_of_birth ? (() => { const [y, m, d] = r.date_of_birth.split("-").map(Number); return new Date(y, m - 1, d); })() : null,
         }))
       );
     } catch (error) {
