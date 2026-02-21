@@ -210,7 +210,7 @@ export default function ManageRecipients() {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button 
-                className="gap-2 bg-amber-100 text-amber-950 hover:bg-amber-200" 
+                className="gap-2 bg-white text-black hover:bg-white/90" 
                 onClick={openNewDialog}
               >
                 <Plus className="w-4 h-4" />
@@ -268,14 +268,14 @@ export default function ManageRecipients() {
                 <div className="flex justify-end gap-3 pt-4">
                   <Button 
                     type="button" 
+                    variant="outline"
                     onClick={() => setIsDialogOpen(false)}
-                    className="bg-amber-100 text-amber-950 hover:bg-amber-200"
                   >
                     Cancel
                   </Button>
                   <Button 
                     type="submit" 
-                    className="bg-amber-100 text-amber-950 hover:bg-amber-200"
+                    className="bg-white text-black hover:bg-white/90"
                     disabled={isSaving}
                   >
                     {isSaving ? (
@@ -305,7 +305,7 @@ export default function ManageRecipients() {
           <p className="text-white/60 mb-6 max-w-sm mx-auto">
             Add the people you want to leave breadcrumbs for — your children, spouse, or anyone special.
           </p>
-          <Button className="bg-amber-100 text-amber-950 hover:bg-amber-200" onClick={openNewDialog}>
+          <Button className="bg-white text-black hover:bg-white/90" onClick={openNewDialog}>
             <Plus className="w-4 h-4 mr-2" />
             Add Your First Recipient
           </Button>
@@ -319,7 +319,7 @@ export default function ManageRecipients() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-amber-100/20 text-amber-100 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl bg-white/10 text-white flex items-center justify-center">
                     <User className="w-5 h-5" />
                   </div>
                   <div>
