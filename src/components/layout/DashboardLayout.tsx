@@ -1,8 +1,9 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Settings, User, Globe, ChevronRight, Users } from "lucide-react";
+import { LogOut, Settings, User, Globe, ChevronRight, Users, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +26,19 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const [recipients, setRecipients] = useState<{ id: string; display_name: string }[]>([]);
+
+  useEffect(() => {
+    if (profile?.role === "creator") {
+      supabase
+        .from("recipients")
+        .select("id, display_name")
+        .eq("creator_id", profile.id)
+        .then(({ data }) => {
+          if (data) setRecipients(data);
+        });
+    }
+  }, [profile]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -48,16 +62,38 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Right side actions */}
             <div className="flex items-center gap-2">
               {profile?.role === "creator" && (
-                <Link to="/creator/recipients">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <Users className="w-4 h-4" />
-                    <span className="hidden sm:inline text-sm">Recipients</span>
-                  </Button>
-                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <Users className="w-4 h-4" />
+                      <span className="hidden sm:inline text-sm">Recipients</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48 bg-background border-border z-50">
+                    {recipients.map(r => (
+                      <DropdownMenuItem
+                        key={r.id}
+                        onClick={() => navigate(`/creator/recipients`)}
+                        className="gap-2 cursor-pointer"
+                      >
+                        <User className="w-4 h-4" />
+                        {r.display_name}
+                      </DropdownMenuItem>
+                    ))}
+                    {recipients.length > 0 && <DropdownMenuSeparator />}
+                    <DropdownMenuItem
+                      onClick={() => navigate("/creator/recipients")}
+                      className="gap-2 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Manage Recipients
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
 
               {/* User Menu */}
