@@ -434,7 +434,7 @@ const CreatorProfile = () => {
                     {creatorDob ? format(creatorDob, "PPP") : "Select your date of birth"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-background border" align="start">
+                <PopoverContent className="w-auto p-0 bg-background border overflow-visible" align="start">
                   <CalendarComponent
                     mode="single"
                     selected={creatorDob || undefined}
@@ -612,7 +612,7 @@ const CreatorProfile = () => {
                           : "Select date of birth"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-background border" align="start">
+                    <PopoverContent className="w-auto p-0 bg-background border overflow-visible" align="start">
                       <CalendarComponent
                         mode="single"
                         selected={formData.date_of_birth || undefined}
