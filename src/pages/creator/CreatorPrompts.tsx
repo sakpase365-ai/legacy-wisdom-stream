@@ -197,7 +197,7 @@ export default function CreatorPrompts() {
               Recording Prompts
             </h1>
             <p className="text-muted-foreground mt-1">
-              Personalized prompts to help you share your wisdom
+              AI Generated prompts to help you share your wisdom
             </p>
           </div>
           <Button
