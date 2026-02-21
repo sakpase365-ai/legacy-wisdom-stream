@@ -228,25 +228,25 @@ export default function CreatorDashboard() {
         </div>
         <div className="flex gap-2 sm:gap-3">
           <Link to="/creator/progress">
-            <Button variant="outline" className="gap-2 border-amber-200/30 text-amber-100 hover:bg-amber-100/10">
+            <Button variant="outline" className="gap-2 border-white/30 text-white hover:bg-white/10">
               <TrendingUp className="w-4 h-4" />
               <span className="hidden sm:inline">Progress</span>
             </Button>
           </Link>
           <Link to="/creator/prompts">
-            <Button variant="outline" className="gap-2 border-amber-200/30 text-amber-100 hover:bg-amber-100/10">
+            <Button variant="outline" className="gap-2 border-white/30 text-white hover:bg-white/10">
               <Sparkles className="w-4 h-4" />
               <span className="hidden sm:inline">Prompts</span>
             </Button>
           </Link>
           <Link to="/creator/recipients">
-            <Button className="gap-2 bg-amber-100 text-amber-950 hover:bg-amber-200">
+            <Button className="gap-2 bg-white text-black hover:bg-white/90">
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">Recipients</span>
             </Button>
           </Link>
           <Link to="/creator/create">
-            <Button className="gap-2 bg-amber-100 text-amber-950 hover:bg-amber-200">
+            <Button className="gap-2 bg-white text-black hover:bg-white/90">
               <Plus className="w-4 h-4" />
               Create
             </Button>

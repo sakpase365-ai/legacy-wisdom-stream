@@ -31,7 +31,7 @@ export function QuickCaptureButton({
         <Button
           size="lg"
           onClick={() => setIsOpen(true)}
-          className="w-14 h-14 rounded-full shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 hover:scale-105 bg-amber-100 text-amber-950 hover:bg-amber-200"
+          className="w-14 h-14 rounded-full shadow-lg shadow-white/10 hover:shadow-xl hover:shadow-white/20 transition-all duration-300 hover:scale-105 bg-white text-black hover:bg-white/90"
         >
           <Plus className="w-6 h-6" />
         </Button>

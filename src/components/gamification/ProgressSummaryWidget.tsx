@@ -26,14 +26,14 @@ export function ProgressSummaryWidget({ profileId }: ProgressSummaryWidgetProps)
 
   return (
     <Link to="/creator/progress">
-      <Card className="group bg-gradient-to-r from-amber-500/5 via-orange-500/5 to-purple-500/5 border-amber-500/20 hover:border-amber-500/40 transition-all cursor-pointer">
+      <Card className="group bg-white/5 border-white/20 hover:border-white/40 transition-all cursor-pointer">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
               {/* Streak */}
               <div className="flex items-center gap-2">
-                <div className={`p-1.5 rounded-lg ${currentStreak > 0 ? "bg-amber-500/20" : "bg-muted"}`}>
-                  <Flame className={`h-4 w-4 ${currentStreak > 0 ? "text-amber-500" : "text-muted-foreground"}`} />
+                <div className={`p-1.5 rounded-lg ${currentStreak > 0 ? "bg-white/20" : "bg-muted"}`}>
+                  <Flame className={`h-4 w-4 ${currentStreak > 0 ? "text-white" : "text-muted-foreground"}`} />
                 </div>
                 <div>
                   <p className="text-lg font-bold text-foreground leading-none">{currentStreak}</p>
@@ -46,8 +46,8 @@ export function ProgressSummaryWidget({ profileId }: ProgressSummaryWidgetProps)
 
               {/* Total Breadcrumbs */}
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-primary/10">
-                  <TrendingUp className="h-4 w-4 text-primary" />
+                <div className="p-1.5 rounded-lg bg-white/10">
+                  <TrendingUp className="h-4 w-4 text-white" />
                 </div>
                 <div>
                   <p className="text-lg font-bold text-foreground leading-none">{totalBreadcrumbs}</p>
@@ -60,8 +60,8 @@ export function ProgressSummaryWidget({ profileId }: ProgressSummaryWidgetProps)
 
               {/* Achievements */}
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-purple-500/10">
-                  <Trophy className="h-4 w-4 text-purple-500" />
+                <div className="p-1.5 rounded-lg bg-white/10">
+                  <Trophy className="h-4 w-4 text-white" />
                 </div>
                 <div>
                   <p className="text-lg font-bold text-foreground leading-none">
