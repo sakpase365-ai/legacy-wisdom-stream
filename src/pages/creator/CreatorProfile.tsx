@@ -304,26 +304,15 @@ const CreatorProfile = () => {
       let familyId = existingFamilyId;
       
       if (!familyId) {
-        // Create new family
-        const { data: newFamily, error: familyError } = await supabase
-          .from("families")
-          .insert({ name: familyName.trim() || `${creatorName.trim()}'s Family` })
-          .select("id")
-          .single();
-
-        if (familyError) throw familyError;
-        familyId = newFamily.id;
-
-        // Add creator as family owner
-        const { error: memberError } = await supabase
-          .from("family_members")
-          .insert({
-            family_id: familyId,
-            user_id: profile.user_id,
-            role: "owner",
+        // Create new family with owner using security definer function
+        const { data: newFamilyId, error: familyError } = await supabase
+          .rpc("create_family_with_owner", {
+            _family_name: familyName.trim() || `${creatorName.trim()}'s Family`,
+            _user_id: profile.user_id,
           });
 
-        if (memberError) throw memberError;
+        if (familyError) throw familyError;
+        familyId = newFamilyId;
       } else if (familyName.trim()) {
         // Update existing family name
         await supabase

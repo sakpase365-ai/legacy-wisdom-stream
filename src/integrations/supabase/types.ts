@@ -543,6 +543,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_family_with_owner: {
+        Args: { _family_name: string; _user_id: string }
+        Returns: string
+      }
       get_user_family_id: { Args: { _user_id: string }; Returns: string }
       is_family_owner: {
         Args: { _family_id: string; _user_id: string }
