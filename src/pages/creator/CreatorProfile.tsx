@@ -296,7 +296,9 @@ const CreatorProfile = () => {
         .from("profiles")
         .update({
           name: creatorName.trim(),
-          date_of_birth: creatorDob ? format(creatorDob, "yyyy-MM-dd") : null,
+          date_of_birth: creatorDob
+            ? `${creatorDob.getFullYear()}-${String(creatorDob.getMonth() + 1).padStart(2, "0")}-${String(creatorDob.getDate()).padStart(2, "0")}`
+            : null,
         })
         .eq("user_id", profile.user_id);
 
@@ -329,13 +331,15 @@ const CreatorProfile = () => {
           ? member.custom_relationship || "Other" 
           : member.relationship;
 
+        const formattedDob = member.date_of_birth
+          ? `${member.date_of_birth.getFullYear()}-${String(member.date_of_birth.getMonth() + 1).padStart(2, "0")}-${String(member.date_of_birth.getDate()).padStart(2, "0")}`
+          : null;
+
         const recipientData = {
           creator_id: profile.id,
           display_name: member.display_name,
           relationship,
-          date_of_birth: member.date_of_birth 
-            ? format(member.date_of_birth, "yyyy-MM-dd") 
-            : null,
+          date_of_birth: formattedDob,
         };
 
         if (member.id) {
