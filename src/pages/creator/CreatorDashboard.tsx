@@ -218,32 +218,32 @@ export default function CreatorDashboard() {
   }
   return <DashboardLayout>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-3xl font-serif font-semibold text-white">
+          <h1 className="text-2xl sm:text-3xl font-serif font-semibold text-white">
             Welcome, {profile?.name?.split(" ")[0]}
           </h1>
-          <p className="text-white/60 mt-1">
+          <p className="text-white/60 mt-0.5 text-sm sm:text-base">
             {breadcrumbs.length === 0 ? "Start leaving breadcrumbs for your loved ones." : `You've left ${breadcrumbs.length} breadcrumb${breadcrumbs.length === 1 ? "" : "s"}.`}
           </p>
         </div>
         <div className="flex gap-2 sm:gap-3">
           <Link to="/creator/progress">
-            <Button variant="outline" className="gap-2 border-white/30 text-white hover:bg-white/10">
-              <TrendingUp className="w-4 h-4" />
+            <Button variant="outline" size="sm" className="gap-1.5 border-white/30 text-white hover:bg-white/10">
+              <TrendingUp className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Progress</span>
             </Button>
           </Link>
           <Link to="/creator/prompts">
-            <Button variant="outline" className="gap-2 border-white/30 text-white hover:bg-white/10">
-              <Sparkles className="w-4 h-4" />
+            <Button variant="outline" size="sm" className="gap-1.5 border-white/30 text-white hover:bg-white/10">
+              <Sparkles className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Prompts</span>
             </Button>
           </Link>
           
           <Link to="/creator/create">
-            <Button className="gap-2 bg-white text-black hover:bg-white/90">
-              <Plus className="w-4 h-4" />
+            <Button size="sm" className="gap-1.5 bg-white text-black hover:bg-white/90">
+              <Plus className="w-3.5 h-3.5" />
               Create
             </Button>
           </Link>
@@ -253,12 +253,12 @@ export default function CreatorDashboard() {
 
 
       {/* Progress Summary Widget */}
-      <div className="mb-6">
+      <div className="mb-4 sm:mb-6">
         <ProgressSummaryWidget profileId={profile?.id} />
       </div>
 
       {/* Filters */}
-      <div className="p-4 mb-6 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10">
+      <div className="p-3 sm:p-4 mb-4 sm:mb-6 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
@@ -295,7 +295,7 @@ export default function CreatorDashboard() {
       </div>
 
       {/* Breadcrumbs List */}
-      <div className="rounded-xl bg-black/40 backdrop-blur-sm border border-white/10 p-4 sm:p-6">
+      <div className="rounded-xl bg-black/40 backdrop-blur-sm border border-white/10 p-3 sm:p-6">
         <button
           onClick={() => setBreadcrumbsOpen(!breadcrumbsOpen)}
           className="w-full flex items-center justify-between"

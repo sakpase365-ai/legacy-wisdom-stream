@@ -7,9 +7,9 @@ const Landing = () => {
   return (
     <div className="min-h-screen w-full bg-background">
       {/* Content */}
-      <div className="flex min-h-screen flex-col items-center justify-center px-6 py-12">
+      <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
         {/* Main heading */}
-        <h1 className="mb-6 text-center text-5xl font-light tracking-tight text-foreground md:text-6xl lg:text-7xl">
+        <h1 className="mb-4 text-center text-3xl font-light tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl sm:mb-6">
           <TypewriterText text="Breadcrumbs" speed={0.1} showCursor={false} />
           <span className="inline-flex">
             {[0, 1, 2].map((i) => (
@@ -32,7 +32,7 @@ const Landing = () => {
         </h1>
 
         {/* Tagline */}
-        <p className="mb-12 max-w-lg text-center text-lg font-light text-muted-foreground md:text-xl">
+        <p className="mb-8 max-w-lg text-center text-base font-light text-muted-foreground sm:text-lg md:text-xl sm:mb-12">
           <TypewriterText 
             text="Preserve your wisdom. For generations to come." 
             delay={1.5} 
@@ -50,7 +50,7 @@ const Landing = () => {
             <Button 
               variant="outline" 
               size="lg"
-              className="border-foreground px-10 py-6 text-base font-normal tracking-wide text-foreground hover:bg-foreground hover:text-background"
+              className="border-foreground px-8 py-5 text-sm font-normal tracking-wide text-foreground hover:bg-foreground hover:text-background sm:px-10 sm:py-6 sm:text-base"
             >
               Get Started
             </Button>

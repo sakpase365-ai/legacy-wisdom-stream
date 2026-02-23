@@ -360,18 +360,18 @@ export default function RecipientHome() {
       )}
       
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-serif font-semibold text-white">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-serif font-semibold text-white">
           Hi, {profile?.name?.split(" ")[0]}
         </h1>
-        <p className="text-white/60 mt-1">
+        <p className="text-white/60 mt-0.5 text-sm sm:text-base">
           Here are breadcrumbs that were left for you.
         </p>
       </div>
       
       {/* Talk to Creator Section */}
       {creators.length > 0 && (
-        <div className="p-6 mb-8 rounded-xl bg-gradient-to-br from-rose-500/10 to-amber-500/10 backdrop-blur-sm border border-white/10">
+        <div className="p-4 sm:p-6 mb-6 sm:mb-8 rounded-xl bg-gradient-to-br from-rose-500/10 to-amber-500/10 backdrop-blur-sm border border-white/10">
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-rose-100/20 text-rose-100 flex items-center justify-center">
               <Heart className="w-5 h-5" />
@@ -402,7 +402,7 @@ export default function RecipientHome() {
       )}
 
       {/* Ask a Question - Family Scoped */}
-      <div className="p-6 mb-8 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10">
+      <div className="p-4 sm:p-6 mb-6 sm:mb-8 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10">
         <div className="flex items-start gap-4">
           <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-amber-100/20 text-amber-100 flex items-center justify-center">
             <Sparkles className="w-5 h-5" />

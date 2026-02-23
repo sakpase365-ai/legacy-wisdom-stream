@@ -49,7 +49,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="min-h-screen w-full bg-background" style={{ minHeight: '100dvh' }}>
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-6">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="flex h-14 items-center justify-between">
             {/* Logo / Home */}
             <Link 
@@ -181,8 +181,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </header>
 
       {/* Main Content */}
-      <main className="py-8">
-        <div className="max-w-4xl mx-auto px-6">
+      <main className="py-4 sm:py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
           {children}
         </div>
       </main>
