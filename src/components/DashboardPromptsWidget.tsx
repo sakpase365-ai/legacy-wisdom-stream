@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ const promptTypeColors = {
 };
 
 export function DashboardPromptsWidget({ profileId, recipients, familyId, onBreadcrumbSaved }: DashboardPromptsWidgetProps) {
+  const navigate = useNavigate();
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -136,13 +137,7 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="cursor-pointer"
-            onClick={() => {
-              if (currentPromptIndex < prompts.length - 1) {
-                setCurrentPromptIndex((prev) => prev + 1);
-              } else {
-                generatePrompts();
-              }
-            }}
+            onClick={() => navigate("/creator/prompts")}
           >
             <Card
               className="group bg-white/5 border-white/10 hover:border-white/30 transition-all pointer-events-none"
