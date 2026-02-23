@@ -122,16 +122,6 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
               <span className="hidden sm:inline">Manual</span>
             </Button>
           </Link>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={generatePrompts}
-            disabled={isRefreshing}
-            className="gap-1.5 text-white/60 hover:text-white hover:bg-white/10"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">Refresh</span>
-          </Button>
         </div>
       </div>
 
@@ -146,7 +136,13 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="cursor-pointer"
-            onClick={generatePrompts}
+            onClick={() => {
+              if (currentPromptIndex < prompts.length - 1) {
+                setCurrentPromptIndex((prev) => prev + 1);
+              } else {
+                generatePrompts();
+              }
+            }}
           >
             <Card
               className="group bg-white/5 border-white/10 hover:border-white/30 transition-all pointer-events-none"
