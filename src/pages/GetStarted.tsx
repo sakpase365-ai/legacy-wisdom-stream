@@ -24,7 +24,7 @@ const GetStarted = () => {
       </motion.div>
 
       <div className="text-center">
-        <h1 className="text-3xl md:text-4xl font-light tracking-tight text-foreground mb-3">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-light tracking-tight text-foreground mb-3">
           <TypewriterText 
             text="How would you like to use Breadcrumbs?" 
             speed={0.04} 
