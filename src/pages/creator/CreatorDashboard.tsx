@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { QuickCaptureButton } from "@/components/QuickCaptureButton";
-import { ProgressSummaryWidget } from "@/components/gamification/ProgressSummaryWidget";
+import { DashboardPromptsWidget } from "@/components/DashboardPromptsWidget";
 
 interface Breadcrumb {
   id: string;
@@ -235,13 +235,6 @@ export default function CreatorDashboard() {
             </Button>
           </Link>
           <Link to="/creator/prompts">
-            <Button variant="outline" size="sm" className="gap-1.5 border-white/30 text-white hover:bg-white/10">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Prompts</span>
-            </Button>
-          </Link>
-          
-          <Link to="/creator/prompts">
             <Button size="sm" className="gap-1.5 bg-white text-black hover:bg-white/90">
               <Plus className="w-3.5 h-3.5" />
               Create
@@ -250,12 +243,17 @@ export default function CreatorDashboard() {
         </div>
       </div>
 
-
-
-      {/* Progress Summary Widget */}
-      <div className="mb-4 sm:mb-6">
-        <ProgressSummaryWidget profileId={profile?.id} />
-      </div>
+      {/* Recording Prompts */}
+      {profile?.id && (
+        <div className="mb-4 sm:mb-6">
+          <DashboardPromptsWidget
+            profileId={profile.id}
+            recipients={recipients}
+            familyId={familyId}
+            onBreadcrumbSaved={fetchData}
+          />
+        </div>
+      )}
 
       {/* Filters */}
       <div className="p-3 sm:p-4 mb-4 sm:mb-6 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10">
