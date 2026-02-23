@@ -145,10 +145,11 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
+            className="cursor-pointer"
+            onClick={generatePrompts}
           >
             <Card
-              className="group bg-white/5 border-white/10 hover:border-white/30 transition-all cursor-pointer"
-              onClick={generatePrompts}
+              className="group bg-white/5 border-white/10 hover:border-white/30 transition-all pointer-events-none"
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-4">
@@ -170,7 +171,7 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
                   </div>
                   <Button
                     size="sm"
-                    className="gap-2 bg-white text-black hover:bg-white/90"
+                    className="gap-2 bg-white text-black hover:bg-white/90 pointer-events-auto"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleStartRecording(prompt);
