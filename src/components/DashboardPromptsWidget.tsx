@@ -8,6 +8,7 @@ import { Sparkles, RefreshCw, Mic, BookOpen, Heart, MessageCircle, Clock, Chevro
 import { QuickCaptureModal } from "@/components/QuickCaptureModal";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import TypewriterText from "@/components/TypewriterText";
 
 interface Prompt {
   prompt_type: "story" | "advice" | "values";
@@ -51,6 +52,8 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(true);
+  const [promptKey, setPromptKey] = useState(0);
 
   useEffect(() => {
     if (profileId && !hasLoaded) {
@@ -60,6 +63,7 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
 
   const generatePrompts = async () => {
     setIsRefreshing(true);
+    setShowPrompt(false);
     try {
       const beneficiaryNames = recipients.map((r) => r.display_name);
       const response = await supabase.functions.invoke("capture-breadcrumb", {
@@ -75,8 +79,15 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
       setPrompts(response.data.prompts || []);
       setCurrentPromptIndex(0);
       setHasLoaded(true);
+      
+      // Delay before showing new prompt with typing animation
+      setTimeout(() => {
+        setPromptKey((prev) => prev + 1);
+        setShowPrompt(true);
+      }, 2000);
     } catch (error) {
       console.error("Error generating prompts:", error);
+      setShowPrompt(true);
     } finally {
       setIsRefreshing(false);
     }
@@ -133,20 +144,18 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
       </div>
 
       {/* Prompt Card */}
-      {prompt ? (
+      {prompt && showPrompt ? (
         <>
         <AnimatePresence mode="wait">
           <motion.div
-            key={`${currentPromptIndex}-${prompts[0]?.prompt?.slice(0, 20)}`}
+            key={`${promptKey}-${currentPromptIndex}`}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="cursor-pointer"
-            onClick={() => navigate("/creator/prompts")}
           >
             <Card
-              className="group bg-white/5 border-white/10 hover:border-white/30 transition-all pointer-events-none"
+              className="group bg-white/5 border-white/10 hover:border-white/30 transition-all"
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-4">
@@ -168,7 +177,7 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
                   </div>
                   <Button
                     size="sm"
-                    className="gap-2 bg-white text-black hover:bg-white/90 pointer-events-auto"
+                    className="gap-2 bg-white text-black hover:bg-white/90"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleStartRecording(prompt);
@@ -179,8 +188,14 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-foreground leading-relaxed mb-3">{prompt.prompt}</p>
-                <div className="flex flex-wrap gap-2">
+                <TypewriterText
+                  text={prompt.prompt}
+                  className="text-foreground leading-relaxed mb-3"
+                  speed={0.02}
+                  delay={0.1}
+                  showCursor={false}
+                />
+                <div className="flex flex-wrap gap-2 mt-3">
                   {prompt.suggested_tags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
                   ))}
@@ -189,53 +204,27 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
             </Card>
           </motion.div>
         </AnimatePresence>
-
-          {/* Thinking Animation */}
-          {isThinking && (
-            <div className="flex items-center justify-center gap-2 py-3">
-              <span className="text-sm text-muted-foreground">Preparing your prompt</span>
-              <div className="flex gap-1">
-                <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
-          )}
-
-          {/* Navigation */}
-          {prompts.length > 1 && (
-            <div className="flex items-center justify-between">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCurrentPromptIndex((prev) => Math.max(0, prev - 1))}
-                disabled={currentPromptIndex === 0}
-                className="gap-1 text-white/60 hover:text-white hover:bg-white/10"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <span className="text-sm text-white/40">
-                {currentPromptIndex + 1} of {prompts.length}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCurrentPromptIndex((prev) => Math.min(prompts.length - 1, prev + 1))}
-                disabled={currentPromptIndex === prompts.length - 1}
-                className="gap-1 text-white/60 hover:text-white hover:bg-white/10"
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
         </>
+      ) : prompt && !showPrompt ? (
+        <Card className="bg-white/5 border-white/10 py-8">
+          <CardContent className="flex items-center justify-center gap-2">
+            <span className="text-white/60 text-sm">Generating new prompt</span>
+            <div className="flex gap-1">
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </CardContent>
+        </Card>
       ) : isRefreshing ? (
         <Card className="bg-white/5 border-white/10 py-8">
           <CardContent className="flex items-center justify-center gap-2">
-            <RefreshCw className="h-5 w-5 animate-spin text-white/40" />
-            <span className="text-white/60">Generating prompts...</span>
+            <span className="text-white/60 text-sm">Generating new prompt</span>
+            <div className="flex gap-1">
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
           </CardContent>
         </Card>
       ) : (
