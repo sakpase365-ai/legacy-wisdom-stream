@@ -337,10 +337,93 @@ async function handleGeneratePrompts(
     .sort((a, b) => a[1] - b[1])
     .map(([topic]) => topic);
 
-  const systemPrompt = `You are Breadcrumbs Prompt Generator.
+  const systemPrompt = `You are Breadcrumbs Prompt Generator with a deep library of 100+ question themes.
 
 Goal:
-Generate 3 short prompts (60–120 seconds each) for ${profile.name || "the creator"} to record this week.
+Generate 5 unique, highly varied prompts (60–120 seconds each) for ${profile.name || "the creator"} to record.
+
+IMPORTANT: You must draw from a WIDE variety of question styles. Here are example THEMES to inspire you (pick different ones each time, never repeat the same angle twice):
+
+STORY prompts — pick from angles like:
+- A childhood memory that shaped who you are
+- The hardest decision you ever made and what you learned
+- A time you failed and how you recovered
+- Your first job and what it taught you
+- A moment you were truly proud of someone
+- The funniest thing that ever happened in your family
+- A trip or adventure that changed your perspective
+- How you met your spouse/partner
+- A teacher or mentor who changed your life
+- Your most embarrassing moment and what you learned
+- A tradition you grew up with and why it mattered
+- The day you became a parent
+- A time you stood up for something you believed in
+- Your favorite holiday memory
+- A friendship that shaped who you are
+- Something you witnessed that you'll never forget
+- A time you had to start over
+- The best advice someone ever gave you
+- A moment of unexpected kindness
+- Your first big purchase and what it meant
+- A skill you learned the hard way
+- A time you surprised yourself
+- A family recipe and the story behind it
+- Your favorite place in the world and why
+- A letter you wish you'd written
+
+ADVICE prompts — pick from angles like:
+- How to handle conflict with grace
+- What to do when you feel lost in life
+- How to manage money wisely in your 20s
+- The most important quality in a friend
+- How to recover from heartbreak
+- What to look for in a life partner
+- How to stay motivated when things are hard
+- The importance of saying "I'm sorry"
+- How to make a tough decision
+- What you wish you knew about raising kids
+- How to build a career you're proud of
+- The value of patience and how to practice it
+- How to deal with difficult people
+- What to prioritize when life gets overwhelming
+- How to be a good listener
+- The importance of taking care of your health early
+- How to set boundaries without guilt
+- What success really means
+- How to handle peer pressure
+- How to find your passion
+- When to hold on and when to let go
+- How to build trust with others
+- The power of showing up consistently
+- How to handle disappointment
+- What courage really looks like in everyday life
+
+VALUES & FAITH prompts — pick from angles like:
+- What does integrity mean to you in practice?
+- A Bible verse or spiritual text that guides your daily life
+- How has your faith been tested and strengthened?
+- What does forgiveness look like in your family?
+- How do you define love beyond romantic love?
+- What spiritual practice has brought you the most peace?
+- How do you handle doubt or uncertainty in faith?
+- What does gratitude mean to you day-to-day?
+- A prayer or hope you have for your children's future
+- What does it mean to live with purpose?
+- How has suffering shaped your understanding of God/life?
+- What moral lesson do you most want to pass down?
+- How do you define right and wrong for your family?
+- What role does community play in your spiritual life?
+- How do you find peace in difficult seasons?
+- What does humility look like in leadership?
+- A moment when your faith surprised you
+- What does it mean to leave a legacy?
+- How do you teach empathy to the next generation?
+- What does sacrifice mean in your family?
+- How do you stay grounded in your values under pressure?
+- What tradition connects you to something bigger than yourself?
+- How do you find meaning in ordinary moments?
+- What does it mean to be a person of character?
+- A belief you hold that has been shaped by experience
 
 Inputs:
 - relationship: ${relationship || "Parent to children"}
@@ -350,13 +433,14 @@ Inputs:
 ${upcoming_events?.length ? `- upcoming_events: ${upcoming_events.join(", ")}` : ""}
 
 Rules:
+- ALWAYS choose different angles from the examples above — never repeat similar questions across calls.
 - Fill gaps in topic coverage.
-- Include 1 story prompt (personal experience/memory)
-- Include 1 advice prompt (practical wisdom)
-- Include 1 values/faith prompt (beliefs, principles, faith)
+- Include at least 1 story, 1 advice, and 1 values/faith prompt. The other 2 can be any type.
+- Make each prompt specific, warm, and conversational — not generic.
 - Avoid requiring sensitive third-party details.
-- Prompts should be warm, inviting, and easy to answer in 60-120 seconds.
-- Suggest 3-5 tags for each prompt.`;
+- Prompts should be easy to answer in 60-120 seconds.
+- Suggest 3-5 tags for each prompt.
+- Add variety in phrasing: sometimes start with "Tell me about...", "What's a time when...", "If you could...", "Describe the moment...", "Share your thoughts on...", etc.`;
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -368,7 +452,7 @@ Rules:
       model: "google/gemini-3-flash-preview",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Generate 3 recording prompts for ${profile.name || "the creator"} to share wisdom with ${beneficiaries.join(", ") || "their family"}.` },
+        { role: "user", content: `Generate 5 varied and unique recording prompts for ${profile.name || "the creator"} to share wisdom with ${beneficiaries.join(", ") || "their family"}. Pick completely different angles and themes from your library.` },
       ],
       tools: [
         {
@@ -413,8 +497,8 @@ Rules:
                     },
                     required: ["prompt_type", "prompt", "suggested_tags", "related_topics"],
                   },
-                  minItems: 3,
-                  maxItems: 3,
+                  minItems: 5,
+                  maxItems: 5,
                 },
               },
               required: ["prompts"],
