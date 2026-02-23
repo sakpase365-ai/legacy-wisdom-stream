@@ -35,8 +35,8 @@ const Landing = () => {
         <p className="mb-8 max-w-lg text-center text-base font-light text-muted-foreground sm:text-lg md:text-xl sm:mb-12">
           <TypewriterText 
             text="Preserve your wisdom. For generations to come." 
-            delay={1.5} 
-            speed={0.045} 
+            delay={0.8} 
+            speed={0.03} 
           />
         </p>
 
@@ -44,7 +44,7 @@ const Landing = () => {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 4, duration: 0.5 }}
+          transition={{ delay: 2.2, duration: 0.4 }}
         >
           <Link to="/get-started">
             <Button 
