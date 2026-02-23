@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -8,7 +8,6 @@ import { Sparkles, RefreshCw, Mic, BookOpen, Heart, MessageCircle, Clock, Chevro
 import { QuickCaptureModal } from "@/components/QuickCaptureModal";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import TypewriterText from "@/components/TypewriterText";
 
 interface Prompt {
   prompt_type: "story" | "advice" | "values";
@@ -42,6 +41,30 @@ const promptTypeColors = {
   advice: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   values: "bg-purple-500/10 text-purple-600 border-purple-500/20",
 };
+
+function PromptTypewriter({ text }: { text: string }) {
+  const [displayedText, setDisplayedText] = useState("");
+
+  useEffect(() => {
+    setDisplayedText("");
+    let i = 0;
+    const interval = setInterval(() => {
+      i++;
+      setDisplayedText(text.slice(0, i));
+      if (i >= text.length) clearInterval(interval);
+    }, 20);
+    return () => clearInterval(interval);
+  }, [text]);
+
+  return (
+    <p className="text-foreground leading-relaxed mb-3">
+      {displayedText}
+      {displayedText.length < text.length && (
+        <span className="inline-block w-[2px] h-[1em] bg-current ml-[1px] animate-pulse" />
+      )}
+    </p>
+  );
+}
 
 export function DashboardPromptsWidget({ profileId, recipients, familyId, onBreadcrumbSaved }: DashboardPromptsWidgetProps) {
   const navigate = useNavigate();
@@ -188,13 +211,7 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
                 </div>
               </CardHeader>
               <CardContent>
-                <TypewriterText
-                  text={prompt.prompt}
-                  className="text-foreground leading-relaxed mb-3"
-                  speed={0.02}
-                  delay={0.1}
-                  showCursor={false}
-                />
+                <PromptTypewriter key={`${promptKey}-${currentPromptIndex}`} text={prompt.prompt} />
                 <div className="flex flex-wrap gap-2 mt-3">
                   {prompt.suggested_tags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
