@@ -112,9 +112,11 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
     <div className="space-y-3">
       {/* Section Header */}
       <div className="flex items-center justify-between">
-        <Link to="/creator/prompts" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="font-serif text-lg font-medium text-white">AI Breadcrumbs</h2>
+        <Link to="/creator/prompts">
+          <Button variant="outline" size="sm" className="gap-1.5 border-white/30 text-white hover:bg-white/10">
+            <Sparkles className="h-3.5 w-3.5" />
+            AI Breadcrumbs
+          </Button>
         </Link>
         <div className="flex items-center gap-2">
           <Link to="/creator/create">
