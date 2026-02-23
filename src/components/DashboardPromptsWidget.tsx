@@ -177,7 +177,6 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
                       handleStartRecording(prompt);
                     }}
                   >
-                    <Mic className="h-4 w-4" />
                     Leave
                   </Button>
                 </div>
