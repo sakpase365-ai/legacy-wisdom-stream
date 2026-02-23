@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Sparkles, RefreshCw, Mic, BookOpen, Heart, MessageCircle, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Sparkles, RefreshCw, Mic, BookOpen, Heart, MessageCircle, Clock, ChevronLeft, ChevronRight, PenLine } from "lucide-react";
 import { QuickCaptureModal } from "@/components/QuickCaptureModal";
 
 interface Prompt {
@@ -200,15 +200,26 @@ export default function CreatorPrompts() {
               AI Generated prompts to help you share your wisdom
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            New Prompts
-          </Button>
+          <div className="flex gap-2">
+            <Link to="/creator/create">
+              <Button
+                variant="outline"
+                className="gap-2"
+              >
+                <PenLine className="h-4 w-4" />
+                Create Manually
+              </Button>
+            </Link>
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              New Prompts
+            </Button>
+          </div>
         </div>
 
         {/* Topic Gaps */}

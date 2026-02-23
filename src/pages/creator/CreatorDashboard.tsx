@@ -241,7 +241,7 @@ export default function CreatorDashboard() {
             </Button>
           </Link>
           
-          <Link to="/creator/create">
+          <Link to="/creator/prompts">
             <Button size="sm" className="gap-1.5 bg-white text-black hover:bg-white/90">
               <Plus className="w-3.5 h-3.5" />
               Create
