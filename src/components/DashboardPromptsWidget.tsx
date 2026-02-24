@@ -148,8 +148,21 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
         </Button>
       </div>
 
-      {/* Prompt Card */}
-      {prompt && showPrompt ? (
+      {/* Thinking State */}
+      {isThinking ? (
+        <Card className="bg-white/5 border-white/10 py-8">
+          <CardContent className="flex items-center justify-center gap-2">
+            <span className="text-white/60 text-sm">Preparing your prompt</span>
+            <div className="flex gap-1">
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </CardContent>
+        </Card>
+      ) :
+      /* Prompt Card */
+      prompt && showPrompt ? (
         <>
         <AnimatePresence mode="wait">
           <motion.div
