@@ -78,12 +78,6 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
   const [showPrompt, setShowPrompt] = useState(true);
   const [promptKey, setPromptKey] = useState(0);
 
-  useEffect(() => {
-    if (profileId && !hasLoaded) {
-      generatePrompts();
-    }
-  }, [profileId]);
-
   const generatePrompts = async () => {
     setIsRefreshing(true);
     setShowPrompt(false);
@@ -137,7 +131,44 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
   };
 
   if (!hasLoaded && !isRefreshing) {
-    return null;
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-white/30 text-white hover:bg-white/10"
+            onClick={generatePrompts}
+            disabled={isRefreshing}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            AI Breadcrumbs
+          </Button>
+        </div>
+        <div className="flex items-center justify-between">
+          <Link to="/creator/create">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-white/30 text-white hover:bg-white/10"
+            >
+              <PenLine className="h-3.5 w-3.5" />
+              Manual Breadcrumb
+            </Button>
+          </Link>
+        </div>
+        <QuickCaptureModal
+          open={isModalOpen}
+          onOpenChange={(open) => !open && handleModalClose()}
+          recipients={recipients}
+          familyId={familyId}
+          creatorId={profileId}
+          onSuccess={handleSaved}
+          initialPrompt={selectedPrompt?.prompt}
+          initialTags={selectedPrompt?.suggested_tags}
+        />
+      </div>
+    );
   }
 
   const prompt = prompts[currentPromptIndex];
