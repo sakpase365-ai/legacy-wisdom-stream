@@ -130,47 +130,6 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
     generatePrompts();
   };
 
-  if (!hasLoaded && !isRefreshing) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 border-white/30 text-white hover:bg-white/10"
-            onClick={generatePrompts}
-            disabled={isRefreshing}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            AI Breadcrumbs
-          </Button>
-        </div>
-        <div className="flex items-center justify-between">
-          <Link to="/creator/create">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 border-white/30 text-white hover:bg-white/10"
-            >
-              <PenLine className="h-3.5 w-3.5" />
-              Manual Breadcrumb
-            </Button>
-          </Link>
-        </div>
-        <QuickCaptureModal
-          open={isModalOpen}
-          onOpenChange={(open) => !open && handleModalClose()}
-          recipients={recipients}
-          familyId={familyId}
-          creatorId={profileId}
-          onSuccess={handleSaved}
-          initialPrompt={selectedPrompt?.prompt}
-          initialTags={selectedPrompt?.suggested_tags}
-        />
-      </div>
-    );
-  }
-
   const prompt = prompts[currentPromptIndex];
 
   return (
@@ -270,10 +229,8 @@ export function DashboardPromptsWidget({ profileId, recipients, familyId, onBrea
       ) : (
         <Card className="bg-white/5 border-white/10 py-8">
           <CardContent className="text-center">
-            <p className="text-white/60 mb-3">No prompts available</p>
-            <Button onClick={generatePrompts} size="sm" className="bg-white text-black hover:bg-white/90">
-              Generate Prompts
-            </Button>
+            <Sparkles className="h-6 w-6 text-white/20 mx-auto mb-2" />
+            <p className="text-white/40 text-sm">Tap "AI Breadcrumbs" to get a prompt</p>
           </CardContent>
         </Card>
       )}
