@@ -17,14 +17,14 @@ interface AISuggestion {
 }
 
 const MOODS = [
-  { key: "grateful", emoji: "🙏", label: "Grateful" },
-  { key: "joyful", emoji: "😄", label: "Joyful" },
-  { key: "reflective", emoji: "🤔", label: "Reflective" },
-  { key: "hopeful", emoji: "🌟", label: "Hopeful" },
-  { key: "peaceful", emoji: "😌", label: "Peaceful" },
-  { key: "proud", emoji: "💪", label: "Proud" },
-  { key: "sad", emoji: "😢", label: "Sad" },
-  { key: "anxious", emoji: "😰", label: "Anxious" },
+  { key: "grateful", label: "Grateful" },
+  { key: "joyful", label: "Joyful" },
+  { key: "reflective", label: "Reflective" },
+  { key: "hopeful", label: "Hopeful" },
+  { key: "peaceful", label: "Peaceful" },
+  { key: "proud", label: "Proud" },
+  { key: "sad", label: "Sad" },
+  { key: "anxious", label: "Anxious" },
 ];
 
 interface Recipient {
@@ -328,7 +328,6 @@ export default function JournalEntry() {
                     : "bg-white/5 border-white/10 text-white/50 hover:border-white/25 hover:text-white/80"
                 }`}
               >
-                <span>{m.emoji}</span>
                 <span>{m.label}</span>
               </button>
             ))}

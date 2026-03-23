@@ -10,14 +10,14 @@ import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 
 const MOOD_LABELS: Record<string, string> = {
-  grateful: "🙏",
-  joyful: "😄",
-  reflective: "🤔",
-  hopeful: "🌟",
-  sad: "😢",
-  anxious: "😰",
-  peaceful: "😌",
-  proud: "💪",
+  grateful: "Grateful",
+  joyful: "Joyful",
+  reflective: "Reflective",
+  hopeful: "Hopeful",
+  sad: "Sad",
+  anxious: "Anxious",
+  peaceful: "Peaceful",
+  proud: "Proud",
 };
 
 interface JournalEntry {
