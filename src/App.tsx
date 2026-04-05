@@ -16,6 +16,8 @@ import RecipientHome from "./pages/recipient/RecipientHome";
 import BreadcrumbDetail from "./pages/BreadcrumbDetail";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import Capture from "./pages/Capture";
+import Archive from "./pages/Archive";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +40,8 @@ const App = () => (
           <Route path="/recipient" element={<RecipientHome />} />
           <Route path="/breadcrumb/:id" element={<BreadcrumbDetail />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/capture" element={<Capture />} />
+          <Route path="/archive" element={<Archive />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

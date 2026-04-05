@@ -36,6 +36,10 @@ export default {
 			]
 		},
   		colors: {
+  			navy:  '#0D1B2A',
+  			gold:  '#C8963E',
+  			warm:  '#F9F6F1',
+  			muted: '#8A8A8A',
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
