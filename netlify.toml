@@ -4,6 +4,13 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # These are placeholder keys — set real values in the Netlify UI (Site → Environment variables).
+  # NEVER put secret values directly in this file.
+  NEXT_PUBLIC_SUPABASE_URL      = "https://sjcvhwdhxjslizvnokac.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqY3Zod2RoeGpzbGl6dm5va2FjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNDYyMTQsImV4cCI6MjA4OTgyMjIxNH0.mHfYBYZgDHLAm1h549PIXQlrMAJHxg-udOfNq3_7gfM"
+  NEXT_PUBLIC_APP_NAME          = "Breadcrumbs"
+  NEXT_PUBLIC_APP_URL           = "https://eclectic-cobbler-b4ea7b.netlify.app"
+  # SUPABASE_SERVICE_ROLE_KEY and ANTHROPIC_API_KEY are secrets — set only in Netlify UI, never here.
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

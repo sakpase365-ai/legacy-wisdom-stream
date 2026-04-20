@@ -1,18 +1,55 @@
+@import "@fontsource/playfair-display/400.css";
+@import "@fontsource/playfair-display/700.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --navy: #0D1B2A;
-  --gold:  #C8963E;
-  --warm:  #F9F6F1;
-  --muted: #8A8A8A;
+@layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    height: 100%;
+    font-size: 16px;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100%;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', Georgia, serif;
+    letter-spacing: -0.02em;
+  }
 }
 
-body {
-  background-color: var(--warm);
-  color: var(--navy);
-  font-family: 'Inter', 'Arial', sans-serif;
+@layer components {
+  .glass-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+  }
 }
 
 textarea {
@@ -20,6 +57,7 @@ textarea {
   outline: none;
 }
 
-textarea:focus {
-  ring: none;
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }

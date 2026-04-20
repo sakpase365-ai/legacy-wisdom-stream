@@ -1,48 +1,90 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
+import ErrorBoundary from '@/components/ErrorBoundary';
+
+const DRAFT_KEY = 'breadcrumbs_draft';
+
+interface Profile {
+  id:         string;
+  name:       string;
+  child_name: string;
+  child_dob:  string;
+}
 
 type Stage = 'loading' | 'prompted' | 'writing' | 'follow-up' | 'done' | 'error';
 
-// ── Hard-coded demo profile (replace with Supabase auth session in production) ──
-const DEMO_PROFILE = {
-  parentId:  'demo-parent-001',
-  parentName: 'Sak',
-  childName:  'Cairo',
-  childDob:   '2014-01-01', // adjust to Cairo's actual DOB
-};
-
-export default function CapturePage() {
+function CaptureFlow() {
   const router = useRouter();
-  const [stage,             setStage]             = useState<Stage>('loading');
-  const [prompt,            setPrompt]            = useState('');
-  const [entry,             setEntry]             = useState('');
-  const [followUp,          setFollowUp]          = useState('');
-  const [followUpAddition,  setFollowUpAddition]  = useState('');
-  const [savedEntryId,      setSavedEntryId]      = useState<string | null>(null);
-  const [saving,            setSaving]            = useState(false);
-  const [charCount,         setCharCount]         = useState(0);
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  const [profile,          setProfile]          = useState<Profile | null>(null);
+  const [stage,            setStage]            = useState<Stage>('loading');
+  const [prompt,           setPrompt]           = useState('');
+  const [entry,            setEntry]            = useState('');
+  const [followUp,         setFollowUp]         = useState('');
+  const [followUpAddition, setFollowUpAddition] = useState('');
+  const [savedEntryId,     setSavedEntryId]     = useState<string | null>(null);
+  const [savedAt,          setSavedAt]          = useState<string | null>(null);
+  const [saving,          setSaving]          = useState(false);
+  const [charCount,       setCharCount]       = useState(0);
+  const [draftRestored,   setDraftRestored]   = useState(false);
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Load daily prompt on mount ────────────────────────────
+  // Restore draft from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if (saved) {
+      setEntry(saved);
+      setCharCount(saved.length);
+      setDraftRestored(true);
+    }
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/generate-prompt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(DEMO_PROFILE),
-        });
-        const data = await res.json();
-        setPrompt(data.prompt);
-        setStage('prompted');
+        const profileRes = await fetch('/api/profile');
+        if (profileRes.status === 401) { router.push('/login?next=/capture'); return; }
+        if (profileRes.status === 422) { router.push('/setup'); return; }
+        if (!profileRes.ok) { setStage('error'); return; }
+        const { profile: p } = await profileRes.json();
+        setProfile(p);
+
+        const promptRes = await fetch('/api/generate-prompt', { method: 'POST' });
+        if (!promptRes.ok) { setStage('error'); return; }
+        const { prompt: dailyPrompt } = await promptRes.json();
+        setPrompt(dailyPrompt);
+
+        // If a draft was restored, go straight to writing stage
+        setStage(localStorage.getItem(DRAFT_KEY) ? 'writing' : 'prompted');
+        // note: draftRestored state is set in the separate mount effect above
       } catch {
         setStage('error');
       }
     })();
-  }, []);
+  }, [router]);
 
-  // ── Save entry → receive follow-up ───────────────────────
+  function handleEntryChange(value: string) {
+    setEntry(value);
+    setCharCount(value.length);
+    if (stage === 'prompted') setStage('writing');
+
+    // Debounce autosave to localStorage
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => {
+      if (value.trim()) {
+        localStorage.setItem(DRAFT_KEY, value);
+      } else {
+        localStorage.removeItem(DRAFT_KEY);
+      }
+    }, 500);
+  }
+
   async function handleSave() {
     if (!entry.trim() || saving) return;
     setSaving(true);
@@ -50,16 +92,14 @@ export default function CapturePage() {
       const res = await fetch('/api/save-entry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          parentId:  DEMO_PROFILE.parentId,
-          childName: DEMO_PROFILE.childName,
-          childDob:  DEMO_PROFILE.childDob,
-          content:   entry,
-        }),
+        body: JSON.stringify({ content: entry }),
       });
+      if (!res.ok) { setStage('error'); return; }
       const data = await res.json();
       setFollowUp(data.followUp);
       setSavedEntryId(data.entry.id);
+      setSavedAt(data.entry.created_at ?? new Date().toISOString());
+      localStorage.removeItem(DRAFT_KEY);
       setStage('follow-up');
     } catch {
       setStage('error');
@@ -68,55 +108,63 @@ export default function CapturePage() {
     }
   }
 
-  // ── Render ───────────────────────────────────────────────
   return (
-    <main className="min-h-screen bg-warm flex flex-col items-center justify-start px-6 py-16">
+    <main className="min-h-screen bg-background flex flex-col items-center justify-start px-6 py-14">
       <div className="max-w-xl w-full space-y-8">
 
         {/* Header */}
         <div className="flex items-center justify-between">
           <button
             onClick={() => router.push('/')}
-            className="text-sm text-muted hover:text-navy transition"
+            className="text-sm text-muted-foreground hover:text-foreground transition"
           >
             ← Back
           </button>
-          <span className="text-xs text-muted uppercase tracking-widest">
+          <span className="text-xs text-muted-foreground uppercase tracking-widest">
             {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           </span>
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+              router.push('/login');
+            }}
+            className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition"
+          >
+            Sign out
+          </button>
         </div>
 
         {/* Loading */}
         {stage === 'loading' && (
           <div className="py-24 text-center">
-            <p className="text-muted text-sm animate-pulse">Preparing today's prompt…</p>
+            <p className="text-muted-foreground text-sm animate-pulse">Preparing today's prompt…</p>
           </div>
         )}
 
-        {/* Prompt + Writing area */}
-        {(stage === 'prompted' || stage === 'writing') && (
+        {/* Prompt + Writing */}
+        {(stage === 'prompted' || stage === 'writing') && profile && (
           <div className="space-y-6">
-            <div className="border-l-4 border-gold pl-5 py-1">
-              <p className="text-navy text-xl font-serif leading-relaxed">{prompt}</p>
+            <div className="border-l-2 border-foreground/30 pl-5 py-1">
+              <p className="font-serif text-foreground text-xl leading-relaxed">{prompt}</p>
             </div>
 
+            {draftRestored && (
+              <p className="text-xs text-muted-foreground/60">Draft restored.</p>
+            )}
+
             <textarea
-              className="w-full h-64 bg-white border border-gray-200 rounded-sm px-5 py-4 text-navy text-base leading-relaxed placeholder:text-gray-300 focus:border-gold focus:ring-0 transition"
-              placeholder={`Write to ${DEMO_PROFILE.childName}…`}
+              className="w-full h-64 bg-card border border-border rounded-sm px-5 py-4 text-foreground text-base leading-relaxed placeholder:text-muted-foreground focus:border-foreground/60 transition"
+              placeholder={`Write to ${profile.child_name}…`}
               value={entry}
-              onChange={(e) => {
-                setEntry(e.target.value);
-                setCharCount(e.target.value.length);
-                if (stage === 'prompted') setStage('writing');
-              }}
+              onChange={(e) => handleEntryChange(e.target.value)}
             />
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted">{charCount} characters</span>
+              <span className="text-xs text-muted-foreground">{charCount} characters</span>
               <button
                 onClick={handleSave}
                 disabled={!entry.trim() || saving}
-                className="py-3 px-8 bg-navy text-warm text-sm font-semibold rounded-sm disabled:opacity-40 hover:bg-opacity-90 transition"
+                className="py-3 px-8 border border-foreground text-foreground text-sm tracking-wide disabled:opacity-30 hover:bg-foreground hover:text-background transition"
               >
                 {saving ? 'Saving…' : 'Save this letter'}
               </button>
@@ -124,16 +172,16 @@ export default function CapturePage() {
           </div>
         )}
 
-        {/* Follow-up stage */}
+        {/* Follow-up */}
         {stage === 'follow-up' && (
           <div className="space-y-6">
-            <div className="bg-white border border-gray-200 rounded-sm px-6 py-5">
-              <p className="text-xs text-muted uppercase tracking-widest mb-3">One more thought</p>
-              <p className="text-navy text-lg font-serif leading-relaxed">{followUp}</p>
+            <div className="glass-card px-6 py-5">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">One more thought</p>
+              <p className="font-serif text-foreground text-lg leading-relaxed">{followUp}</p>
             </div>
 
             <textarea
-              className="w-full h-40 bg-white border border-gray-200 rounded-sm px-5 py-4 text-navy text-base leading-relaxed placeholder:text-gray-300 focus:border-gold focus:ring-0 transition"
+              className="w-full h-40 bg-card border border-border rounded-sm px-5 py-4 text-foreground text-base leading-relaxed placeholder:text-muted-foreground focus:border-foreground/60 transition"
               placeholder="Add to your entry (optional)…"
               value={followUpAddition}
               onChange={(e) => setFollowUpAddition(e.target.value)}
@@ -143,7 +191,7 @@ export default function CapturePage() {
               <button
                 onClick={() => setStage('done')}
                 disabled={saving}
-                className="flex-1 py-3 px-6 border border-navy text-navy text-sm font-semibold rounded-sm hover:bg-navy hover:text-warm disabled:opacity-40 transition"
+                className="flex-1 py-3 px-6 border border-border text-muted-foreground text-sm tracking-wide hover:border-foreground hover:text-foreground disabled:opacity-30 transition"
               >
                 Skip — I'm done
               </button>
@@ -163,7 +211,7 @@ export default function CapturePage() {
                   }
                 }}
                 disabled={saving}
-                className="flex-1 py-3 px-6 bg-navy text-warm text-sm font-semibold rounded-sm disabled:opacity-40 hover:bg-opacity-90 transition"
+                className="flex-1 py-3 px-6 border border-foreground text-foreground text-sm tracking-wide disabled:opacity-30 hover:bg-foreground hover:text-background transition"
               >
                 {saving ? 'Saving…' : 'Add and finish'}
               </button>
@@ -171,24 +219,32 @@ export default function CapturePage() {
           </div>
         )}
 
-        {/* Done state */}
-        {stage === 'done' && (
-          <div className="py-16 text-center space-y-6">
-            <div className="w-12 h-0.5 bg-gold mx-auto" />
-            <p className="text-navy text-2xl font-serif">
-              {DEMO_PROFILE.childName} will have this when the time is right.
+        {/* Done */}
+        {stage === 'done' && profile && (
+          <div className="py-20 text-center space-y-6">
+            <div className="w-12 h-px bg-foreground/30 mx-auto" />
+            <p className="font-serif text-foreground text-2xl">
+              {profile.child_name} will have this when the time is right.
             </p>
-            <p className="text-muted text-sm">Your entry has been saved and filed.</p>
+            {savedAt && (
+              <p className="text-xs text-muted-foreground">
+                Saved {new Date(savedAt).toLocaleDateString('en-US', {
+                  month: 'long', day: 'numeric', year: 'numeric',
+                })} at {new Date(savedAt).toLocaleTimeString('en-US', {
+                  hour: 'numeric', minute: '2-digit',
+                })}
+              </p>
+            )}
             <div className="flex gap-4 justify-center pt-4">
               <button
                 onClick={() => router.push('/archive')}
-                className="py-3 px-6 border border-navy text-navy text-sm font-semibold rounded-sm hover:bg-navy hover:text-warm transition"
+                className="py-3 px-6 border border-border text-muted-foreground text-sm tracking-wide hover:border-foreground hover:text-foreground transition"
               >
                 View archive
               </button>
               <button
                 onClick={() => router.push('/')}
-                className="py-3 px-6 bg-navy text-warm text-sm font-semibold rounded-sm"
+                className="py-3 px-6 border border-foreground text-foreground text-sm tracking-wide hover:bg-foreground hover:text-background transition"
               >
                 Done
               </button>
@@ -196,14 +252,14 @@ export default function CapturePage() {
           </div>
         )}
 
-        {/* Error state */}
+        {/* Error */}
         {stage === 'error' && (
-          <div className="py-16 text-center space-y-4">
-            <p className="text-navy text-lg">Something went wrong.</p>
-            <p className="text-muted text-sm">Check your API keys and Supabase connection.</p>
+          <div className="py-20 text-center space-y-4">
+            <p className="font-serif text-foreground text-xl">Something went wrong.</p>
+            <p className="text-muted-foreground text-sm">Check your connection and try again.</p>
             <button
               onClick={() => { setStage('loading'); setEntry(''); }}
-              className="mt-4 py-3 px-6 bg-navy text-warm text-sm font-semibold rounded-sm"
+              className="mt-4 py-3 px-6 border border-foreground text-foreground text-sm tracking-wide hover:bg-foreground hover:text-background transition"
             >
               Try again
             </button>
@@ -212,5 +268,13 @@ export default function CapturePage() {
 
       </div>
     </main>
+  );
+}
+
+export default function CapturePage() {
+  return (
+    <ErrorBoundary>
+      <CaptureFlow />
+    </ErrorBoundary>
   );
 }
