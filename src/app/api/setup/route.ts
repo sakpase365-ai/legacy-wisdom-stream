@@ -3,7 +3,7 @@ import { getSessionClient, getServiceClient } from '@/lib/supabase';
 
 const VALID_ROLES = new Set([
   'parent', 'mother', 'father', 'child', 'son', 'daughter', 'sibling', 'brother', 'sister',
-  'grandparent', 'grandmother', 'grandfather', 'guardian', 'aunt', 'uncle', 'cousin', 'other',
+  'wife', 'husband', 'grandparent', 'grandmother', 'grandfather',
 ]);
 
 interface MemberInput {
@@ -42,10 +42,6 @@ export async function POST(req: NextRequest) {
   if (!ownerRole || typeof ownerRole !== 'string' || !VALID_ROLES.has(ownerRole)) {
     return NextResponse.json({ error: 'ownerRole is invalid' }, { status: 400 });
   }
-  if (ownerRole === 'other' && (!customOwnerRole || !customOwnerRole.trim())) {
-    return NextResponse.json({ error: 'customOwnerRole is required when ownerRole is "other"' }, { status: 400 });
-  }
-
   if (Array.isArray(members)) {
     for (const m of members) {
       if (!m.name || !m.name.trim()) {
@@ -81,7 +77,7 @@ export async function POST(req: NextRequest) {
       auth_user_id:      session.user.id,
       name:              ownerName.trim(),
       role:              ownerRole,
-      custom_role_label: ownerRole === 'other' ? customOwnerRole?.trim() ?? null : null,
+      custom_role_label: null,
       family_name:       familyName?.trim() || null,
     })
     .select('id, name, role, family_name')
@@ -102,7 +98,7 @@ export async function POST(req: NextRequest) {
           user_id:           profile.id,
           name:              m.name.trim(),
           role:              m.role,
-          custom_role_label: m.role === 'other' ? m.customRoleLabel?.trim() ?? null : null,
+          custom_role_label: null,
           birth_date:        m.birthDate || null,
         }))
       )

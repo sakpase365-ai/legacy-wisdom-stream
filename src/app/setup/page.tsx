@@ -84,7 +84,6 @@ interface MemberDraft {
   localId: string;
   name: string;
   role: string;
-  customRole: string;
   birthDate: string;
 }
 
@@ -119,7 +118,7 @@ function MemberRow({
 
       <select
         value={member.role}
-        onChange={(e) => onChange({ ...member, role: e.target.value, customRole: '' })}
+        onChange={(e) => onChange({ ...member, role: e.target.value })}
         className={SELECT}
       >
         <option value="" disabled>Relationship…</option>
@@ -135,15 +134,6 @@ function MemberRow({
         </optgroup>
       </select>
 
-      {member.role === 'other' && (
-        <input
-          type="text"
-          placeholder="Describe the relationship"
-          value={member.customRole}
-          onChange={(e) => onChange({ ...member, customRole: e.target.value })}
-          className={INPUT}
-        />
-      )}
 
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground/60">Birthday (optional)</label>
@@ -173,7 +163,6 @@ export default function SetupPage() {
   const [familyName,      setFamilyName]      = useState('');
   const [ownerName,       setOwnerName]       = useState('');
   const [ownerRole,       setOwnerRole]       = useState('parent');
-  const [customOwnerRole, setCustomOwnerRole] = useState('');
   const [members,         setMembers]         = useState<MemberDraft[]>([]);
 
   const [error, setError] = useState('');
@@ -182,7 +171,6 @@ export default function SetupPage() {
   function handleProfileNext(e: React.FormEvent) {
     e.preventDefault();
     if (!ownerName.trim() || !ownerRole) return;
-    if (ownerRole === 'other' && !customOwnerRole.trim()) return;
     setError('');
     setStep('members');
   }
@@ -200,10 +188,6 @@ export default function SetupPage() {
         setError('Please select a relationship for each family member.');
         return;
       }
-      if (m.role === 'other' && !m.customRole.trim()) {
-        setError('Please describe the relationship for the "Other" member.');
-        return;
-      }
     }
 
     setBusy(true);
@@ -215,12 +199,12 @@ export default function SetupPage() {
         body: JSON.stringify({
           ownerName:       ownerName.trim(),
           ownerRole,
-          customOwnerRole: ownerRole === 'other' ? customOwnerRole.trim() : null,
+          customOwnerRole: null,
           familyName:      familyName.trim() || null,
           members:         members.map((m) => ({
             name:              m.name.trim(),
             role:              m.role,
-            customRoleLabel:   m.role === 'other' ? m.customRole.trim() : null,
+            customRoleLabel:   null,
             birthDate:         m.birthDate || null,
           })),
         }),
@@ -277,16 +261,6 @@ export default function SetupPage() {
 
             <OwnerRoleSelector value={ownerRole} onChange={setOwnerRole} />
 
-            {ownerRole === 'other' && (
-              <input
-                type="text"
-                required
-                placeholder="Describe your role"
-                value={customOwnerRole}
-                onChange={(e) => setCustomOwnerRole(e.target.value)}
-                className={INPUT}
-              />
-            )}
 
             {error && <p className="text-sm text-red-400">{error}</p>}
 
@@ -326,7 +300,7 @@ export default function SetupPage() {
               onClick={() =>
                 setMembers((prev) => [
                   ...prev,
-                  { localId: nextLocalId(), name: '', role: '', customRole: '', birthDate: '' },
+                  { localId: nextLocalId(), name: '', role: '', birthDate: '' },
                 ])
               }
               className="w-full py-3 border border-border text-muted-foreground text-sm tracking-wide hover:border-foreground/40 hover:text-foreground transition"

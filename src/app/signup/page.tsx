@@ -100,7 +100,6 @@ interface MemberDraft {
   localId: string;
   name: string;
   role: string;
-  customRole: string;
   birthDate: string;
 }
 
@@ -135,7 +134,7 @@ function MemberRow({
 
       <select
         value={member.role}
-        onChange={(e) => onChange({ ...member, role: e.target.value, customRole: '' })}
+        onChange={(e) => onChange({ ...member, role: e.target.value })}
         className={SELECT}
       >
         <option value="" disabled>
@@ -157,15 +156,7 @@ function MemberRow({
         </optgroup>
       </select>
 
-      {member.role === 'other' && (
-        <input
-          type="text"
-          placeholder="Describe the relationship"
-          value={member.customRole}
-          onChange={(e) => onChange({ ...member, customRole: e.target.value })}
-          className={INPUT}
-        />
-      )}
+
 
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground/60">
@@ -216,7 +207,6 @@ export default function SignupPage() {
   const [familyName,      setFamilyName]      = useState('');
   const [ownerName,       setOwnerName]       = useState('');
   const [ownerRole,       setOwnerRole]       = useState('parent');
-  const [customOwnerRole, setCustomOwnerRole] = useState('');
 
   // Step 3
   const [members, setMembers] = useState<MemberDraft[]>([]);
@@ -238,7 +228,6 @@ export default function SignupPage() {
   function handleProfileNext(e: React.FormEvent) {
     e.preventDefault();
     if (!ownerName.trim() || !ownerRole) return;
-    if (ownerRole === 'other' && !customOwnerRole.trim()) return;
     setStep('members');
   }
 
@@ -255,10 +244,6 @@ export default function SignupPage() {
         setError('Please select a relationship for each family member.');
         return;
       }
-      if (m.role === 'other' && !m.customRole.trim()) {
-        setError('Please describe the relationship for the "Other" member.');
-        return;
-      }
     }
 
     setBusy(true);
@@ -270,12 +255,12 @@ export default function SignupPage() {
         data: {
           owner_name:        ownerName.trim(),
           owner_role:        ownerRole,
-          custom_owner_role: ownerRole === 'other' ? customOwnerRole.trim() : null,
+          custom_owner_role: null,
           family_name:       familyName.trim() || null,
           family_members:    members.map((m) => ({
             name:              m.name.trim(),
             role:              m.role,
-            custom_role_label: m.role === 'other' ? m.customRole.trim() : null,
+            custom_role_label: null,
             birth_date:        m.birthDate || null,
           })),
         },
@@ -369,17 +354,6 @@ export default function SignupPage() {
 
             <OwnerRoleSelector value={ownerRole} onChange={setOwnerRole} />
 
-            {ownerRole === 'other' && (
-              <input
-                type="text"
-                required
-                placeholder="Describe your role"
-                value={customOwnerRole}
-                onChange={(e) => setCustomOwnerRole(e.target.value)}
-                className={INPUT}
-              />
-            )}
-
             <button
               type="submit"
               className="w-full py-3 border border-foreground text-foreground text-sm tracking-wide hover:bg-foreground hover:text-background transition"
@@ -426,11 +400,10 @@ export default function SignupPage() {
                 setMembers((prev) => [
                   ...prev,
                   {
-                    localId:    nextLocalId(),
-                    name:       '',
-                    role:       '',
-                    customRole: '',
-                    birthDate:  '',
+                    localId:   nextLocalId(),
+                    name:      '',
+                    role:      '',
+                    birthDate: '',
                   },
                 ])
               }

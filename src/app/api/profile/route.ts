@@ -5,7 +5,7 @@ import { assertEnv } from '@/lib/env';
 
 const VALID_ROLES = new Set([
   'parent', 'mother', 'father', 'child', 'son', 'daughter', 'sibling', 'brother', 'sister',
-  'grandparent', 'grandmother', 'grandfather', 'guardian', 'aunt', 'uncle', 'cousin', 'other',
+  'wife', 'husband', 'grandparent', 'grandmother', 'grandfather',
 ]);
 
 export async function GET() {
@@ -81,7 +81,7 @@ export async function GET() {
       auth_user_id:      session.user.id,
       name:              ownerName,
       role:              ownerRole,
-      custom_role_label: ownerRole === 'other' ? (customOwnerRole ?? null) : null,
+      custom_role_label: null,
       family_name:       familyName ?? null,
     })
     .select('id, name, family_name, role, custom_role_label, child_name, child_dob')
@@ -109,7 +109,7 @@ export async function GET() {
         user_id:           newProfile.id,
         name:              m.name,
         role:              memberRole,
-        custom_role_label: memberRole === 'other' ? (m.custom_role_label ?? null) : null,
+        custom_role_label: null,
         birth_date:        m.birth_date ?? null,
       });
     }
