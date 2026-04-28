@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { DESCENDENT_ROLES } from '@/lib/roles';
+import { firstName } from '@/lib/utils';
 
 const DRAFT_KEY = 'breadcrumbs_draft';
 
@@ -121,7 +122,7 @@ function CaptureFlow() {
   }
 
   const recipient = primaryRecipient(familyMembers);
-  const recipientLabel = recipient?.name ?? 'your family';
+  const recipientLabel = firstName(recipient?.name) ?? 'your family';
 
   return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-start px-6 py-14">

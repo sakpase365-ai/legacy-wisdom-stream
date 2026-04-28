@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { assertEnv } from '@/lib/env';
 import { differenceInYears, parseISO } from 'date-fns';
 import { DESCENDENT_ROLES } from '@/lib/roles';
+import { firstName } from '@/lib/utils';
 
 const RATE_LIMIT     = 30;
 const RATE_WINDOW_MS = 60 * 60 * 1000;
@@ -66,7 +67,7 @@ export async function POST() {
     null;
 
   // Fall back to legacy child_name/child_dob if no family members exist yet
-  const recipientName = primary?.name ?? profile.child_name ?? undefined;
+  const recipientName = firstName(primary?.name ?? profile.child_name);
   const birthDateStr  = primary?.birth_date ?? profile.child_dob ?? null;
   const recipientAge  = birthDateStr
     ? differenceInYears(new Date(), parseISO(birthDateStr))
