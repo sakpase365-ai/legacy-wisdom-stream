@@ -34,16 +34,40 @@ export async function GET() {
   if (profile) {
     let familyMembers = await fetchMembers(db, profile.id);
 
-    // Code-level backfill: if the user has a legacy child_name but no family_members yet,
-    // migrate it so downstream code has a consistent family_members array.
-    if (familyMembers.length === 0 && profile.child_name) {
-      await db.from('family_members').insert({
-        user_id:    profile.id,
-        name:       profile.child_name,
-        role:       'child',
-        birth_date: profile.child_dob ?? null,
-      });
-      familyMembers = await fetchMembers(db, profile.id);
+    if (familyMembers.length === 0) {
+      const meta = session.user.user_metadata ?? {};
+      const membersFromMeta = (meta.family_members ?? []) as Array<{
+        name:              string;
+        role:              string;
+        custom_role_label: string | null;
+        birth_date:        string | null;
+      }>;
+
+      const recoveryRows = membersFromMeta
+        .filter((m) => m.name)
+        .map((m) => ({
+          user_id:           profile.id,
+          name:              m.name,
+          role:              VALID_ROLES.has(m.role) ? m.role : 'child',
+          custom_role_label: null as string | null,
+          birth_date:        m.birth_date ?? null,
+        }));
+
+      // Legacy single-child fallback
+      if (recoveryRows.length === 0 && profile.child_name) {
+        recoveryRows.push({
+          user_id:           profile.id,
+          name:              profile.child_name,
+          role:              'child',
+          custom_role_label: null,
+          birth_date:        profile.child_dob ?? null,
+        });
+      }
+
+      if (recoveryRows.length > 0) {
+        await db.from('family_members').insert(recoveryRows);
+        familyMembers = await fetchMembers(db, profile.id);
+      }
     }
 
     return NextResponse.json({ profile, familyMembers });
