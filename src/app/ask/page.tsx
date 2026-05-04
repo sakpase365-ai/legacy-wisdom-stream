@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 
@@ -23,6 +24,7 @@ export default function AskPage() {
   const [question,           setQuestion]           = useState('');
   const [answer,             setAnswer]             = useState<string | null>(null);
   const [warnings,           setWarnings]           = useState<string[]>([]);
+  const [contextSources,     setContextSources]     = useState<{ source: string; id: string }[]>([]);
   const [error,              setError]              = useState<string | null>(null);
   const [loading,            setLoading]            = useState(false);
   const [profileLoading,     setProfileLoading]     = useState(true);
@@ -52,6 +54,7 @@ export default function AskPage() {
     setLoading(true);
     setAnswer(null);
     setWarnings([]);
+    setContextSources([]);
     setError(null);
 
     try {
@@ -77,6 +80,7 @@ export default function AskPage() {
       const data = await res.json();
       setAnswer(data.answer as string);
       setWarnings((data.warnings ?? []) as string[]);
+      setContextSources((data.contextSources ?? []) as { source: string; id: string }[]);
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -111,7 +115,7 @@ export default function AskPage() {
           <textarea
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="What would Dad say about handling failure?"
+            placeholder="What do you believe about handling failure?"
             rows={4}
             maxLength={1000}
             disabled={loading}
@@ -168,9 +172,23 @@ export default function AskPage() {
               </div>
             )}
 
-            <p className="text-xs text-muted-foreground/50">
-              Answers are based on saved Family Foundation and Breadcrumbs.
-            </p>
+            {(() => {
+              const breadcrumbCount = contextSources.filter((s) => s.source === 'breadcrumbs').length;
+              return breadcrumbCount > 0 ? (
+                <p className="text-xs text-muted-foreground/50">
+                  Answered using {breadcrumbCount} saved{' '}
+                  {breadcrumbCount === 1 ? 'breadcrumb' : 'breadcrumbs'} from your{' '}
+                  <Link href="/archive" className="underline underline-offset-2 hover:text-muted-foreground transition">
+                    Family Library
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground/50">
+                  Answers are based on your saved Family Foundation and Breadcrumbs.
+                </p>
+              );
+            })()}
           </div>
         )}
 
