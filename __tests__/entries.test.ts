@@ -9,8 +9,16 @@ vi.mock('@/lib/supabase', () => ({
 import { GET } from '../src/app/api/entries/route';
 import { getSessionClient, getServiceClient } from '@/lib/supabase';
 
-const MOCK_SESSION = { user: { id: 'uid-abc' } };
-const MOCK_PROFILE = { id: 'pid-xyz' };
+const MOCK_SESSION  = { user: { id: 'uid-abc' } };
+const MOCK_PROFILE  = {
+  id:                'pid-xyz',
+  name:              'Alice',
+  family_name:       null,
+  role:              'father',
+  custom_role_label: null,
+  child_name:        null,
+  child_dob:         null,
+};
 const MOCK_ENTRIES = [
   {
     id:            'entry-1',
@@ -44,12 +52,18 @@ describe('GET /api/entries', () => {
       from: vi.fn((table: string) => {
         if (table === 'users') {
           return {
-            select: vi.fn().mockReturnThis(),
-            eq:     vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({ data: MOCK_PROFILE, error: null }),
+            select:      vi.fn().mockReturnThis(),
+            eq:          vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: MOCK_PROFILE, error: null }),
           };
         }
-        // entries
+        if (table === 'family_members') {
+          return {
+            select:      vi.fn().mockReturnThis(),
+            eq:          vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          };
+        }
         return {
           select: vi.fn().mockReturnThis(),
           eq:     vi.fn().mockReturnThis(),
@@ -76,9 +90,9 @@ describe('GET /api/entries', () => {
     vi.mocked(getSessionClient).mockResolvedValue(makeSession(MOCK_SESSION) as never);
     vi.mocked(getServiceClient).mockReturnValue({
       from: vi.fn(() => ({
-        select: vi.fn().mockReturnThis(),
-        eq:     vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+        select:      vi.fn().mockReturnThis(),
+        eq:          vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
       })),
     } as never);
 
@@ -92,9 +106,16 @@ describe('GET /api/entries', () => {
       from: vi.fn((table: string) => {
         if (table === 'users') {
           return {
-            select: vi.fn().mockReturnThis(),
-            eq:     vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({ data: MOCK_PROFILE, error: null }),
+            select:      vi.fn().mockReturnThis(),
+            eq:          vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: MOCK_PROFILE, error: null }),
+          };
+        }
+        if (table === 'family_members') {
+          return {
+            select:      vi.fn().mockReturnThis(),
+            eq:          vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
           };
         }
         return {

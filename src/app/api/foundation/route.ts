@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionClient, getServiceClient } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import { assertEnv } from '@/lib/env';
+import { resolveFamilyAccess, canWriteFamilyContent } from '@/lib/family-access';
 import { VALID_FOUNDATION_KEYS } from '@/lib/breadcrumbs';
 
 const CONTENT_MAX = 4_000;
@@ -15,20 +16,16 @@ export async function GET() {
 
   const db = getServiceClient();
 
-  const { data: profile, error: profileError } = await db
-    .from('users')
-    .select('id')
-    .eq('auth_user_id', session.user.id)
-    .single();
+  const access = await resolveFamilyAccess(db, session.user.id);
 
-  if (profileError || !profile) {
+  if (!access) {
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
   }
 
   const { data, error } = await db
     .from('family_foundations')
     .select('category, content, updated_at')
-    .eq('user_id', profile.id);
+    .eq('user_id', access.familyId);
 
   if (error) {
     logger.error('failed to fetch foundation', { route: 'foundation GET', code: error.code });
@@ -68,21 +65,20 @@ export async function POST(req: NextRequest) {
 
   const db = getServiceClient();
 
-  const { data: profile } = await db
-    .from('users')
-    .select('id')
-    .eq('auth_user_id', session.user.id)
-    .single();
+  const access = await resolveFamilyAccess(db, session.user.id);
 
-  if (!profile) {
+  if (!access) {
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+  }
+  if (!canWriteFamilyContent(access)) {
+    return NextResponse.json({ error: 'Not allowed to edit foundation for this family' }, { status: 403 });
   }
 
   const { error } = await db
     .from('family_foundations')
     .upsert(
       {
-        user_id:    profile.id,
+        user_id:    access.familyId,
         category,
         content,
         updated_at: new Date().toISOString(),

@@ -3,6 +3,8 @@ const REQUIRED = [
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'ANTHROPIC_API_KEY',
+  'RESEND_API_KEY',
+  'RESEND_FROM_EMAIL',
 ] as const;
 
 let checked = false;

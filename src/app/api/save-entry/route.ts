@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { assertEnv } from '@/lib/env';
 import { differenceInYears, parseISO } from 'date-fns';
 import { BREADCRUMB_TYPES, VALUE_TAGS, type BreadcrumbTypeValue } from '@/lib/breadcrumbs';
+import { resolveFamilyAccess, canWriteFamilyContent } from '@/lib/family-access';
 
 const CONTENT_MAX    = 8_000;
 const APPEND_MAX     = 4_000;
@@ -79,16 +80,16 @@ export async function POST(req: NextRequest) {
 
   const db = getServiceClient();
 
-  const { data: profile, error: profileError } = await db
-    .from('users')
-    .select('id, child_name, child_dob')
-    .eq('auth_user_id', session.user.id)
-    .single();
-
-  if (profileError || !profile) {
-    logger.error('profile lookup failed', { route: 'save-entry POST', code: profileError?.code });
+  const access = await resolveFamilyAccess(db, session.user.id);
+  if (!access) {
+    logger.error('profile lookup failed', { route: 'save-entry POST' });
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
   }
+  if (!canWriteFamilyContent(access)) {
+    return NextResponse.json({ error: 'Not allowed to create breadcrumbs for this family' }, { status: 403 });
+  }
+
+  const profile = access.familyProfile;
 
   let recipientName:    string | null = null;
   let recipientAge                    = 10;
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
       .from('family_members')
       .select('name, birth_date')
       .eq('id', recipientId)
-      .eq('user_id', profile.id)
+      .eq('user_id', access.familyId)
       .single();
 
     if (member) {
@@ -128,17 +129,18 @@ export async function POST(req: NextRequest) {
     const { data: bcData, error: bcError } = await db
       .from('breadcrumbs')
       .insert({
-        parent_id:        profile.id,
-        family_member_id: validRecipientId,
-        breadcrumb_type:  breadcrumbType,
+        parent_id:               access.familyId,
+        family_member_id:        validRecipientId,
+        author_family_member_id: access.familyMemberId,
+        breadcrumb_type:         breadcrumbType,
         content,
         title,
         tags,
-        summary:          aiTags.summary,
-        follow_up:        followUp,
-        domain:           aiTags.domain,
-        relevant_age:     aiTags.relevantAge,
-        delivery_type:    aiTags.deliveryType,
+        summary:                 aiTags.summary,
+        follow_up:               followUp,
+        domain:                  aiTags.domain,
+        relevant_age:            aiTags.relevantAge,
+        delivery_type:           aiTags.deliveryType,
       })
       .select('id, created_at, breadcrumb_type, tags, title')
       .single();
@@ -151,7 +153,7 @@ export async function POST(req: NextRequest) {
     const { data: legacyEntry } = await db
       .from('entries')
       .insert({
-        parent_id:     profile.id,
+        parent_id:     access.familyId,
         child_name:    recipientName,
         content,
         follow_up:     followUp,
@@ -170,12 +172,12 @@ export async function POST(req: NextRequest) {
         .eq('id', bcData.id);
     }
 
-    logger.info('breadcrumb saved', { route: 'save-entry POST', parentId: profile.id, remaining });
+    logger.info('breadcrumb saved', { route: 'save-entry POST', parentId: access.familyId, remaining });
     return NextResponse.json({ breadcrumb: bcData, followUp });
   } catch (err) {
     logger.error('failed to save breadcrumb', {
       route:    'save-entry POST',
-      parentId: profile.id,
+      parentId: access.familyId,
       error:    err instanceof Error ? err.message : String(err),
     });
     return NextResponse.json({ error: 'Failed to save entry' }, { status: 500 });
@@ -206,25 +208,23 @@ export async function PATCH(req: NextRequest) {
 
   const db = getServiceClient();
 
-  const { data: profile } = await db
-    .from('users')
-    .select('id')
-    .eq('auth_user_id', session.user.id)
-    .single();
-
-  if (!profile) {
+  const access = await resolveFamilyAccess(db, session.user.id);
+  if (!access) {
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+  }
+  if (!canWriteFamilyContent(access)) {
+    return NextResponse.json({ error: 'Not allowed to edit breadcrumbs for this family' }, { status: 403 });
   }
 
   const { data: bc, error: fetchError } = await db
     .from('breadcrumbs')
     .select('id, content')
     .eq('id', breadcrumbId)
-    .eq('parent_id', profile.id)
+    .eq('parent_id', access.familyId)
     .single();
 
   if (fetchError || !bc) {
-    logger.warn('breadcrumb not found or not owned', { route: 'save-entry PATCH', parentId: profile.id });
+    logger.warn('breadcrumb not found or not owned', { route: 'save-entry PATCH', parentId: access.familyId });
     return NextResponse.json({ error: 'Breadcrumb not found' }, { status: 404 });
   }
 
@@ -236,12 +236,12 @@ export async function PATCH(req: NextRequest) {
   if (error) {
     logger.error('failed to append follow-up', {
       route:    'save-entry PATCH',
-      parentId: profile.id,
+      parentId: access.familyId,
       error:    error.message,
     });
     return NextResponse.json({ error: 'Failed to update breadcrumb' }, { status: 500 });
   }
 
-  logger.info('follow-up appended', { route: 'save-entry PATCH', parentId: profile.id });
+  logger.info('follow-up appended', { route: 'save-entry PATCH', parentId: access.familyId });
   return NextResponse.json({ ok: true });
 }

@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { getSessionClient, getServiceClient } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import { assertEnv } from '@/lib/env';
+import { resolveFamilyAccess } from '@/lib/family-access';
 
 const VALID_ROLES = new Set([
   'parent', 'mother', 'father', 'child', 'son', 'daughter', 'sibling', 'brother', 'sister',
   'wife', 'husband', 'grandparent', 'grandmother', 'grandfather',
+  'spouse', 'co_parent',
 ]);
 
 export async function GET() {
@@ -20,21 +22,13 @@ export async function GET() {
 
   const db = getServiceClient();
 
-  const { data: profile, error: profileError } = await db
-    .from('users')
-    .select('id, name, family_name, role, custom_role_label, child_name, child_dob')
-    .eq('auth_user_id', session.user.id)
-    .single();
+  const access = await resolveFamilyAccess(db, session.user.id);
 
-  if (profileError && profileError.code !== 'PGRST116') {
-    logger.error('profile fetch failed', { route: 'profile GET', code: profileError.code });
-    return NextResponse.json({ error: 'Failed to load profile' }, { status: 500 });
-  }
+  if (access) {
+    const profile = access.familyProfile;
+    let familyMembers = await fetchMembers(db, access.familyId);
 
-  if (profile) {
-    let familyMembers = await fetchMembers(db, profile.id);
-
-    if (familyMembers.length === 0) {
+    if (access.isOwner && familyMembers.length === 0) {
       const meta = session.user.user_metadata ?? {};
       const membersFromMeta = (meta.family_members ?? []) as Array<{
         name:              string;
@@ -46,7 +40,7 @@ export async function GET() {
       const recoveryRows = membersFromMeta
         .filter((m) => m.name)
         .map((m) => ({
-          user_id:           profile.id,
+          user_id:           access.familyId,
           name:              m.name,
           role:              VALID_ROLES.has(m.role) ? m.role : 'child',
           custom_role_label: null as string | null,
@@ -56,7 +50,7 @@ export async function GET() {
       // Legacy single-child fallback
       if (recoveryRows.length === 0 && profile.child_name) {
         recoveryRows.push({
-          user_id:           profile.id,
+          user_id:           access.familyId,
           name:              profile.child_name,
           role:              'child',
           custom_role_label: null,
@@ -66,11 +60,23 @@ export async function GET() {
 
       if (recoveryRows.length > 0) {
         await db.from('family_members').insert(recoveryRows);
-        familyMembers = await fetchMembers(db, profile.id);
+        familyMembers = await fetchMembers(db, access.familyId);
       }
     }
 
-    return NextResponse.json({ profile, familyMembers });
+    return NextResponse.json({
+      profile,
+      familyMembers,
+      access: {
+        familyId:          access.familyId,
+        viewerUserId:      access.viewerUserId,
+        familyMemberId:    access.familyMemberId,
+        familyRole:        access.familyRole,
+        appPermissionRole: access.appPermissionRole,
+        isOwner:           access.isOwner,
+        canInvite:         access.canInvite,
+      },
+    });
   }
 
   // ── First login: create profile from user_metadata ────────────
@@ -170,8 +176,8 @@ async function fetchMembers(
 ) {
   const { data } = await db
     .from('family_members')
-    .select('id, name, role, custom_role_label, birth_date')
+    .select('id, name, role, custom_role_label, birth_date, linked_user_id, app_permission_role, status')
     .eq('user_id', userId)
     .order('created_at', { ascending: true });
-  return data ?? [];
+  return (data ?? []).filter((member: { status?: string | null }) => member.status !== 'removed');
 }

@@ -1,4 +1,5 @@
 import { getServiceClient } from '@/lib/supabase';
+import { resolveFamilyAccess } from '@/lib/family-access';
 import { FOUNDATION_QUESTIONS, BREADCRUMB_TYPE_LABEL, VALUE_TAGS } from '@/lib/breadcrumbs';
 import { logger } from '@/lib/logger';
 import { differenceInYears, parseISO } from 'date-fns';
@@ -201,14 +202,10 @@ export async function buildFamilyAgentContext(
   const warnings: string[]       = [];
   const contextSources: ContextSource[] = [];
 
-  // ── 1. Resolve user profile ──────────────────────────────────────
-  const { data: profile } = await db
-    .from('users')
-    .select('id, name, family_name, role, custom_role_label')
-    .eq('auth_user_id', userId)
-    .single();
+  // ── 1. Resolve family environment (owner row + family id for data scope) ──
+  const access = await resolveFamilyAccess(db, userId);
 
-  if (!profile) {
+  if (!access) {
     logger.warn('family agent: user profile not found', { userId });
     return {
       ownerName:            '',
@@ -225,7 +222,8 @@ export async function buildFamilyAgentContext(
     };
   }
 
-  const profileId = profile.id as string;
+  const profile   = access.familyProfile;
+  const profileId = access.familyId;
 
   // ── 2. Parallel DB fetches ───────────────────────────────────────
   const [foundationsResult, breadcrumbsResult, membersResult] = await Promise.all([
@@ -328,10 +326,10 @@ export async function buildFamilyAgentContext(
   }
 
   return {
-    ownerName:            profile.name as string,
-    ownerRole:            (profile.role as string | null) ?? null,
-    ownerCustomRoleLabel: (profile.custom_role_label as string | null) ?? null,
-    familyName:           profile.family_name as string | null,
+    ownerName:            profile.name,
+    ownerRole:            profile.role ?? null,
+    ownerCustomRoleLabel: profile.custom_role_label ?? null,
+    familyName:           profile.family_name,
     profileNotFound:      false,
     familyProfileContext,
     recipientContext,

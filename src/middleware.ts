@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
-const PROTECTED_PATHS = ['/capture', '/archive', '/foundation', '/ask'];
+const PROTECTED_PATHS = ['/capture', '/archive', '/foundation', '/ask', '/family'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -42,5 +42,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/capture', '/capture/:path*', '/archive', '/archive/:path*', '/foundation', '/foundation/:path*', '/ask', '/ask/:path*'],
+  matcher: ['/capture', '/capture/:path*', '/archive', '/archive/:path*', '/foundation', '/foundation/:path*', '/ask', '/ask/:path*', '/family', '/family/:path*'],
 };

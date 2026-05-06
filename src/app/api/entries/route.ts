@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSessionClient, getServiceClient } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import { assertEnv } from '@/lib/env';
+import { resolveFamilyAccess } from '@/lib/family-access';
 
 export async function GET() {
   assertEnv();
@@ -15,46 +16,57 @@ export async function GET() {
 
   const db = getServiceClient();
 
-  const { data: profile, error: profileError } = await db
-    .from('users')
-    .select('id')
-    .eq('auth_user_id', session.user.id)
-    .single();
+  const access = await resolveFamilyAccess(db, session.user.id);
 
-  if (profileError || !profile) {
-    logger.error('profile lookup failed', { route: 'entries GET', code: profileError?.code });
+  if (!access) {
+    logger.error('profile lookup failed', { route: 'entries GET' });
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
   }
 
   const { data, error } = await db
     .from('breadcrumbs')
     .select(
-      'id, title, summary, domain, relevant_age, delivery_type, breadcrumb_type, tags, content, created_at, delivered_at, family_members(name)'
+      'id, title, summary, domain, relevant_age, delivery_type, breadcrumb_type, tags, content, created_at, delivered_at, author_family_member_id, recipient:family_members!family_member_id(name), author:family_members!author_family_member_id(name)'
     )
-    .eq('parent_id', profile.id)
+    .eq('parent_id', access.familyId)
     .order('created_at', { ascending: false });
 
   if (error) {
-    logger.error('failed to fetch breadcrumbs', { route: 'entries GET', parentId: profile.id, code: error.code });
+    logger.error('failed to fetch breadcrumbs', { route: 'entries GET', parentId: access.familyId, code: error.code });
     return NextResponse.json({ error: 'Failed to fetch entries' }, { status: 500 });
   }
 
-  const entries = (data ?? []).map((row) => ({
-    id:              row.id,
-    title:           row.title ?? null,
-    summary:         row.summary,
-    domain:          row.domain,
-    relevant_age:    row.relevant_age,
-    delivery_type:   row.delivery_type,
-    breadcrumb_type: row.breadcrumb_type,
-    tags:            row.tags ?? [],
-    content:         row.content,
-    created_at:      row.created_at,
-    delivered_at:    row.delivered_at,
-    recipient_name:  Array.isArray(row.family_members)
-      ? (row.family_members[0] as { name: string } | undefined)?.name ?? null
-      : (row.family_members as { name: string } | null)?.name ?? null,
-  }));
+  const ownerName = access.familyProfile.name;
+
+  const entries = (data ?? []).map((row) => {
+    const recipientRaw = row.recipient as { name: string } | { name: string }[] | null;
+    const authorRaw    = row.author    as { name: string } | { name: string }[] | null;
+
+    const recipientName = Array.isArray(recipientRaw)
+      ? (recipientRaw[0]?.name ?? null)
+      : (recipientRaw?.name ?? null);
+
+    const authorName = row.author_family_member_id
+      ? (Array.isArray(authorRaw) ? (authorRaw[0]?.name ?? null) : (authorRaw?.name ?? null))
+      : ownerName;
+
+    return {
+      id:                      row.id,
+      title:                   row.title ?? null,
+      summary:                 row.summary,
+      domain:                  row.domain,
+      relevant_age:            row.relevant_age,
+      delivery_type:           row.delivery_type,
+      breadcrumb_type:         row.breadcrumb_type,
+      tags:                    row.tags ?? [],
+      content:                 row.content,
+      created_at:              row.created_at,
+      delivered_at:            row.delivered_at,
+      recipient_name:          recipientName,
+      author_name:             authorName,
+      author_family_member_id: row.author_family_member_id ?? null,
+    };
+  });
 
   return NextResponse.json({ entries });
 }

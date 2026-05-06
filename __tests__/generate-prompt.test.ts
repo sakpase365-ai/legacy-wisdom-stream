@@ -20,7 +20,15 @@ import { generateDailyPrompt, FALLBACK_PROMPTS } from '@/lib/ai';
 import { checkRateLimit } from '@/lib/rate-limit';
 
 const MOCK_SESSION = { user: { id: 'uid-abc', user_metadata: {} } };
-const MOCK_PROFILE = { id: 'pid-xyz', name: 'Alice', role: 'parent', child_name: 'Bob', child_dob: '2018-06-01' };
+const MOCK_PROFILE = {
+  id:                'pid-xyz',
+  name:              'Alice',
+  family_name:       null,
+  role:              'parent',
+  custom_role_label: null,
+  child_name:        'Bob',
+  child_dob:         '2018-06-01',
+};
 
 function makeRequest(body?: Record<string, unknown>): NextRequest {
   return new NextRequest('http://localhost/api/generate-prompt', {
@@ -31,18 +39,25 @@ function makeRequest(body?: Record<string, unknown>): NextRequest {
 }
 
 function makeDb() {
+  let familyMembersFromCount = 0;
   return {
     from: vi.fn((table: string) => {
       if (table === 'users') {
         return {
-          select: vi.fn().mockReturnThis(),
-          eq:     vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({ data: MOCK_PROFILE, error: null }),
+          select:      vi.fn().mockReturnThis(),
+          eq:          vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: MOCK_PROFILE, error: null }),
         };
       }
       if (table === 'family_members') {
-        // The all-descendants query ends with .eq() (no terminal method), so the
-        // returned object must be a proper thenable for `await` to resolve it.
+        familyMembersFromCount += 1;
+        if (familyMembersFromCount === 1) {
+          return {
+            select:      vi.fn().mockReturnThis(),
+            eq:          vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          };
+        }
         return {
           select: vi.fn().mockReturnThis(),
           eq:     vi.fn().mockReturnThis(),
@@ -55,7 +70,6 @@ function makeDb() {
           },
         };
       }
-      // entries — recent topics
       return {
         select: vi.fn().mockReturnThis(),
         eq:     vi.fn().mockReturnThis(),
@@ -124,9 +138,9 @@ describe('POST /api/generate-prompt', () => {
       from: vi.fn((table: string) => {
         if (table === 'users') {
           return {
-            select: vi.fn().mockReturnThis(),
-            eq:     vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+            select:      vi.fn().mockReturnThis(),
+            eq:          vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
           };
         }
         return {};

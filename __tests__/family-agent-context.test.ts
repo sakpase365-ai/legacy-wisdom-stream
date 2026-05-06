@@ -63,14 +63,52 @@ function makeDb({
   foundations     = FOUNDATION_ROWS,
   breadcrumbs     = [BREADCRUMB_FOR_CAIRO, BREADCRUMB_EVERYONE, BREADCRUMB_FOR_AVA],
   members         = [MEMBER_CAIRO, MEMBER_AVA],
+  invitedScenario = false,
 } = {}) {
+  const viewer = invitedScenario
+    ? {
+      id:                'viewer-1',
+      name:              'Jane',
+      family_name:       null,
+      role:              'mother',
+      custom_role_label: null,
+      child_name:        null,
+      child_dob:         null,
+    }
+    : profile;
+  const owner = profile;
+
+  const linkedRow = invitedScenario
+    ? {
+      id:                  'fm-inv',
+      user_id:             owner.id,
+      name:                'Jane',
+      role:                'mother',
+      app_permission_role: 'contributor',
+      status:              'active',
+    }
+    : null;
+
+  let userFromCount          = 0;
+  let familyMembersFromCount = 0;
+
   return {
     from: vi.fn((table: string) => {
       if (table === 'users') {
+        const idx = userFromCount++;
+        if (invitedScenario && idx === 1) {
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq:     vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({ data: owner, error: null }),
+          };
+        }
         return {
           select: vi.fn().mockReturnThis(),
           eq:     vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({ data: profile, error: null }),
+          maybeSingle: vi.fn().mockResolvedValue(
+            idx === 0 ? { data: viewer, error: null } : { data: null, error: null },
+          ),
         };
       }
       if (table === 'family_foundations') {
@@ -87,6 +125,14 @@ function makeDb({
         };
       }
       if (table === 'family_members') {
+        familyMembersFromCount += 1;
+        if (familyMembersFromCount === 1) {
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq:     vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: linkedRow, error: null }),
+          };
+        }
         return {
           select: vi.fn().mockReturnThis(),
           eq:     vi.fn().mockReturnThis(),
@@ -333,14 +379,24 @@ describe('buildFamilyAgentContext', () => {
     expect(ctx.warnings.some((w) => w.includes('Foundation'))).toBe(true);
   });
 
+  it('uses family owner voice when viewer is an invited member', async () => {
+    vi.mocked(getServiceClient).mockReturnValue(makeDb({ invitedScenario: true }) as never);
+    const ctx = await buildFamilyAgentContext({
+      userId:   'uid-wife',
+      question: 'What values matter most?',
+    });
+    expect(ctx.ownerName).toBe('Marcus');
+    expect(ctx.profileNotFound).toBe(false);
+  });
+
   it('sets profileNotFound = true if profile not found', async () => {
     vi.mocked(getServiceClient).mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === 'users') {
           return {
-            select: vi.fn().mockReturnThis(),
-            eq:     vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+            select:      vi.fn().mockReturnThis(),
+            eq:          vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
           };
         }
         return {};

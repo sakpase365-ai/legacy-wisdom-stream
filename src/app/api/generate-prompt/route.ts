@@ -7,6 +7,7 @@ import { assertEnv } from '@/lib/env';
 import { differenceInYears, parseISO } from 'date-fns';
 import { DESCENDENT_ROLES } from '@/lib/roles';
 import { firstName } from '@/lib/nameUtils';
+import { resolveFamilyAccess, canWriteFamilyContent } from '@/lib/family-access';
 
 const RATE_LIMIT     = 30;
 const RATE_WINDOW_MS = 60 * 60 * 1000;
@@ -52,16 +53,17 @@ export async function POST(req: NextRequest) {
 
   const db = getServiceClient();
 
-  const { data: profile, error: profileError } = await db
-    .from('users')
-    .select('id, name, role, child_name, child_dob')
-    .eq('auth_user_id', session.user.id)
-    .single();
+  const access = await resolveFamilyAccess(db, session.user.id);
 
-  if (profileError || !profile) {
-    logger.error('profile lookup failed', { route: 'generate-prompt', code: profileError?.code });
+  if (!access) {
+    logger.error('profile lookup failed', { route: 'generate-prompt' });
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
   }
+  if (!canWriteFamilyContent(access)) {
+    return NextResponse.json({ error: 'Not allowed to generate writing prompts for this family' }, { status: 403 });
+  }
+
+  const profile = access.familyProfile;
 
   let recipientName: string | undefined;
   let recipientAge:  number | undefined;
