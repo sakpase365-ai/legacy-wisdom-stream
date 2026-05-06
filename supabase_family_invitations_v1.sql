@@ -78,6 +78,11 @@ CREATE INDEX IF NOT EXISTS idx_family_invitations_email
 
 ALTER TABLE public.family_invitations ENABLE ROW LEVEL SECURITY;
 
+-- Idempotent: safe if this script was partially applied before
+DROP POLICY IF EXISTS "family_invitations: owner select" ON public.family_invitations;
+DROP POLICY IF EXISTS "family_invitations: owner insert" ON public.family_invitations;
+DROP POLICY IF EXISTS "family_invitations: owner update" ON public.family_invitations;
+
 -- Family owner can view all invitations for their family
 CREATE POLICY "family_invitations: owner select"
   ON public.family_invitations FOR SELECT
