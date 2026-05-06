@@ -1,4 +1,5 @@
 import { getServiceClient } from '@/lib/supabase';
+import { hashInviteToken } from '@/lib/invite-token';
 import InviteActions from './InviteActions';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +31,7 @@ async function loadInvite(token: string): Promise<
         name
       )
     `)
-    .eq('invite_token', token)
+    .eq('invite_token', hashInviteToken(token))
     .single();
 
   if (!invite) return { ok: false, reason: 'not_found' };

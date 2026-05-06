@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSessionClient, getServiceClient } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
+import { hashInviteToken } from '@/lib/invite-token';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,7 @@ export default async function InviteFinalizePage({
   const { data: invite } = await db
     .from('family_invitations')
     .select('id, status, expires_at, invited_email, family_member_id, family_identity_role, family_id')
-    .eq('invite_token', token)
+    .eq('invite_token', hashInviteToken(token))
     .single();
 
   if (!invite) {
