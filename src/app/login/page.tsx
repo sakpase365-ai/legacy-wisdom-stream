@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import ProductAttribution from '@/components/ProductAttribution';
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -12,10 +13,38 @@ function LoginForm() {
   const [busy,  setBusy]      = useState(false);
 
   useEffect(() => {
-    const err = searchParams.get('error');
+    const err     = searchParams.get('error');
+    const msgParam = searchParams.get('msg');
+
     if (err === 'link_error') {
-      setError('That link has expired or was already used. Request a new one.');
-    } else if (err) {
+      let body = 'That link has expired or was already used. Request a new one.';
+      if (msgParam) {
+        try {
+          const decoded = decodeURIComponent(msgParam);
+          if (decoded.length > 0 && decoded.length < 240 && !/[<>]/.test(decoded)) {
+            body = decoded;
+          }
+        } catch { /* ignore malformed msg */ }
+      }
+      setError(body);
+      return;
+    }
+
+    if (err === 'missing_code') {
+      setError(
+        'The sign-in link did not include a valid code. Request a new link. If it keeps happening, open the link in the same browser where you requested the email.',
+      );
+      return;
+    }
+
+    if (err === 'auth_failed') {
+      setError(
+        'We could not finish sign-in. The link may have expired, already been used, or been opened on another device or browser than where you requested it. Request a new link and open it in the same browser when possible.',
+      );
+      return;
+    }
+
+    if (err) {
       setError('Sign-in failed. Please try again.');
     }
   }, [searchParams]);
@@ -84,6 +113,10 @@ function LoginForm() {
             Create an account
           </a>
         </p>
+
+        <div className="pt-6">
+          <ProductAttribution />
+        </div>
       </div>
     </main>
   );
