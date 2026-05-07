@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { createBrowserClient } from '@supabase/ssr';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -477,10 +477,45 @@ function CaptureFlow() {
   );
 }
 
+/**
+ * Magic links must hit /auth/callback so exchangeCodeForSession runs.
+ * If Supabase Site URL (or a template) sends ?code= to /capture, we forward here.
+ */
+function CompleteMagicLinkFromCapture({ code }: { code: string }) {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace(
+      `/auth/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent('/capture')}`
+    );
+  }, [code, router]);
+  return (
+    <main className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
+      <p className="text-muted-foreground text-sm">Completing sign-in…</p>
+    </main>
+  );
+}
+
+function CapturePageGate() {
+  const searchParams = useSearchParams();
+  const code           = searchParams.get('code');
+  if (code) {
+    return <CompleteMagicLinkFromCapture code={code} />;
+  }
+  return <CaptureFlow />;
+}
+
 export default function CapturePage() {
   return (
     <ErrorBoundary>
-      <CaptureFlow />
+      <Suspense
+        fallback={(
+          <main className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          </main>
+        )}
+      >
+        <CapturePageGate />
+      </Suspense>
     </ErrorBoundary>
   );
 }
