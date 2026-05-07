@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionClient, getServiceClient } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-import { assertEnv } from '@/lib/env';
+import { assertEnv, assertEmailEnv } from '@/lib/env';
 import { VALID_IDENTITY_ROLE_VALUES, VALID_PERMISSION_ROLE_VALUES } from '@/lib/roles';
 import { resolveFamilyAccess } from '@/lib/family-access';
 import { generateInviteToken } from '@/lib/invite-token';
@@ -9,6 +9,7 @@ import { sendInviteEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   assertEnv();
+  assertEmailEnv();
 
   const supabase = await getSessionClient();
   const { data: { session } } = await supabase.auth.getSession();

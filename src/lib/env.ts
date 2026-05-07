@@ -3,6 +3,10 @@ const REQUIRED = [
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'ANTHROPIC_API_KEY',
+] as const;
+
+// Only checked in routes that actually send email (invite flow).
+export const EMAIL_REQUIRED = [
   'RESEND_API_KEY',
   'RESEND_FROM_EMAIL',
 ] as const;
@@ -43,4 +47,15 @@ export function assertEnv() {
   }
 
   checked = true;
+}
+
+// Call only in routes that send email. Does not block other routes if RESEND vars are absent.
+export function assertEmailEnv() {
+  const missing = (EMAIL_REQUIRED as readonly string[]).filter((k) => !process.env[k]);
+  if (missing.length > 0) {
+    throw new Error(
+      `[env] Missing email environment variables: ${missing.join(', ')}. ` +
+      'Set RESEND_API_KEY and RESEND_FROM_EMAIL in Netlify environment variables.'
+    );
+  }
 }
