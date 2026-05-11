@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { getBrowserSupabase } from '@/lib/supabase-browser';
 import { BREADCRUMB_TYPE_LABEL } from '@/lib/breadcrumbs';
 import { formatTagForDisplay } from '@/lib/breadcrumb-tags';
 
@@ -39,10 +39,6 @@ interface EntryCard {
 
 export default function ArchivePage() {
   const router = useRouter();
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
   const [entries,    setEntries]    = useState<EntryCard[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState(false);
@@ -87,7 +83,8 @@ export default function ArchivePage() {
             </button>
             <button
               onClick={async () => {
-                await supabase.auth.signOut();
+                const supabase = getBrowserSupabase();
+                if (supabase) await supabase.auth.signOut();
                 router.push('/login');
               }}
               className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition"

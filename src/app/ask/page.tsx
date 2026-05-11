@@ -3,12 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
-
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
+import { getBrowserSupabase } from '@/lib/supabase-browser';
 
 interface FamilyMember {
   id:   string;
@@ -32,6 +27,11 @@ export default function AskPage() {
   useEffect(() => {
     (async () => {
       try {
+        const supabase = getBrowserSupabase();
+        if (!supabase) {
+          router.push('/login?next=/ask');
+          return;
+        }
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { router.push('/login?next=/ask'); return; }
 

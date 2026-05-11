@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { createBrowserClient } from '@supabase/ssr';
+import { getBrowserSupabase } from '@/lib/supabase-browser';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { DESCENDENT_ROLES } from '@/lib/roles';
 import { firstName } from '@/lib/nameUtils';
@@ -53,10 +53,6 @@ async function fetchPrompt(recipientId: string | null, excludePriorPrompts?: str
 
 function CaptureFlow() {
   const router = useRouter();
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   const [profile,             setProfile]            = useState<Profile | null>(null);
   const [familyMembers,       setFamilyMembers]      = useState<FamilyMember[]>([]);
@@ -274,7 +270,8 @@ function CaptureFlow() {
           </span>
           <button
             onClick={async () => {
-              await supabase.auth.signOut();
+              const supabase = getBrowserSupabase();
+              if (supabase) await supabase.auth.signOut();
               router.push('/login');
             }}
             className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition"
