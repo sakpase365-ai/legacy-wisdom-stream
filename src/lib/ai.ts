@@ -244,7 +244,8 @@ Rules:
 - Avoid near-duplicates (e.g. not both "hope" and "encouragement" unless clearly distinct).
 - Do not output the tag "journey". Use "legacy" only as a theme if it truly fits.
 - Tags describe theme, tone, relationship, intent, or values — NOT media type alone.
-- Breadcrumb type hint (do not mirror blindly): ${input.breadcrumbType}
+- The writer picked a starting intent below — use it as a soft signal only. Infer the real meaning from the text. Final tags may reflect richer notions when grounded in the writing (e.g. blessing, warning, testimony, encouragement, faith, discipline, family-history, forgiveness, work-ethic, identity, resilience, love, grief, gratitude, future-milestone). Do not stop at the intent label or mirror it if the text says something deeper.
+- Writer starting intent (hint, not final taxonomy): ${input.breadcrumbType}
 
 ${userHint}
 ${recipientHint}

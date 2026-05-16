@@ -504,7 +504,7 @@ describe('formatContextBlock', () => {
     });
     expect(block).toContain('SAVED BREADCRUMBS');
     expect(block).toContain('For Cairo');
-    expect(block).toContain('Life Lesson');
+    expect(block).toContain('Lesson');
     expect(block).toContain('[Courage]');
     expect(block).toContain('You will rise.');
   });

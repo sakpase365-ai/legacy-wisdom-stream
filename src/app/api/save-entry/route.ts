@@ -5,7 +5,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
 import { assertEnv } from '@/lib/env';
 import { differenceInYears, parseISO } from 'date-fns';
-import { BREADCRUMB_TYPES, type BreadcrumbTypeValue } from '@/lib/breadcrumbs';
+import { ALL_WRITABLE_BREADCRUMB_TYPES, type BreadcrumbTypeValue } from '@/lib/breadcrumbs';
 import { resolveFamilyAccess, canWriteFamilyContent } from '@/lib/family-access';
 import { dedupeTags, mergeBreadcrumbTags } from '@/lib/breadcrumb-tags';
 
@@ -14,7 +14,7 @@ const APPEND_MAX     = 4_000;
 const SAVE_LIMIT     = 20;
 const SAVE_WINDOW_MS = 60 * 60 * 1000;
 
-const VALID_TYPES = new Set<string>(BREADCRUMB_TYPES.map((t) => t.value));
+const DEFAULT_BREADCRUMB_TYPE: BreadcrumbTypeValue = 'message';
 
 export async function POST(req: NextRequest) {
   assertEnv();
@@ -66,8 +66,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const breadcrumbType =
-    typeof rawType === 'string' && VALID_TYPES.has(rawType) ? rawType as BreadcrumbTypeValue : 'letter' as BreadcrumbTypeValue;
+  const breadcrumbType: BreadcrumbTypeValue =
+    typeof rawType === 'string' && ALL_WRITABLE_BREADCRUMB_TYPES.has(rawType)
+      ? rawType
+      : DEFAULT_BREADCRUMB_TYPE;
 
   const userKebab = Array.isArray(rawTags)
     ? dedupeTags(rawTags.filter((t): t is string => typeof t === 'string')).slice(0, 8)
@@ -346,7 +348,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const newContent = `${bc.content}\n\n${appendContent}`;
-  const breadcrumbType = typeof bc.breadcrumb_type === 'string' ? bc.breadcrumb_type : 'letter';
+  const breadcrumbType = typeof bc.breadcrumb_type === 'string' ? bc.breadcrumb_type : DEFAULT_BREADCRUMB_TYPE;
   const priorTags = Array.isArray(bc.tags) ? dedupeTags(bc.tags as string[]) : [];
 
   let updateRow: Record<string, unknown> = {

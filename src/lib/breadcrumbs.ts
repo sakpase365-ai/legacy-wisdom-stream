@@ -1,18 +1,84 @@
-export const BREADCRUMB_TYPES = [
-  { value: 'letter',       label: 'Letter'           },
-  { value: 'story',        label: 'Story'             },
-  { value: 'lesson',       label: 'Life Lesson'       },
-  { value: 'advice',       label: 'Advice'            },
-  { value: 'memory',       label: 'Memory'            },
-  { value: 'prayer',       label: 'Prayer / Blessing' },
-  { value: 'family_value', label: 'Family Value'      },
+/**
+ * Simplified capture UX: three intents only. Stored as public.breadcrumb_type.
+ * Legacy rows may still use letter, story, advice, prayer, family_value, etc.
+ */
+export const CAPTURE_INTENT_OPTIONS = [
+  {
+    value:       'message',
+    label:       'Message',
+    description:
+      'A direct note, encouragement, blessing, prayer, or something you want them to hear from you.',
+  },
+  {
+    value:       'memory',
+    label:       'Memory',
+    description:
+      'A story, moment, experience, family history, or something you want remembered.',
+  },
+  {
+    value:       'lesson',
+    label:       'Lesson',
+    description:
+      'Wisdom, values, advice, principles, warnings, or something you want passed down.',
+  },
 ] as const;
 
-export type BreadcrumbTypeValue = typeof BREADCRUMB_TYPES[number]['value'];
+export type CaptureIntentValue = (typeof CAPTURE_INTENT_OPTIONS)[number]['value'];
 
-export const BREADCRUMB_TYPE_LABEL: Record<string, string> = Object.fromEntries(
-  BREADCRUMB_TYPES.map((t) => [t.value, t.label])
-);
+const CAPTURE_VALUES = new Set<string>(CAPTURE_INTENT_OPTIONS.map((o) => o.value));
+
+/** Archive badges + API validation: new intents, legacy app values, and schema enum extras */
+export const BREADCRUMB_TYPE_LABEL: Record<string, string> = {
+  message:      'Message',
+  memory:       'Memory',
+  lesson:       'Lesson',
+  letter:       'Letter',
+  story:        'Story',
+  advice:       'Advice',
+  prayer:       'Prayer / Blessing',
+  family_value: 'Family Value',
+  reflection:   'Reflection',
+  guidance:     'Guidance',
+  wisdom:       'Wisdom',
+  answer:       'Answer',
+  encouragement: 'Encouragement',
+  journal:      'Journal',
+};
+
+/** Accept these on POST /api/save-entry (legacy + capture + enum) */
+export const ALL_WRITABLE_BREADCRUMB_TYPES = new Set(Object.keys(BREADCRUMB_TYPE_LABEL));
+
+/**
+ * Backward compatibility: code/tests that expect { value, label }[].
+ * Prefer CAPTURE_INTENT_OPTIONS for capture UI only.
+ */
+export const BREADCRUMB_TYPES = Object.entries(BREADCRUMB_TYPE_LABEL).map(([value, label]) => ({
+  value,
+  label,
+}));
+
+export type BreadcrumbTypeValue = string;
+
+/** Map foundation/legacy prefill types to a capture intent when opening /capture */
+export function normalizePrefillBreadcrumbType(raw: string): CaptureIntentValue {
+  if (CAPTURE_VALUES.has(raw)) return raw as CaptureIntentValue;
+  const legacyToIntent: Record<string, CaptureIntentValue> = {
+    letter:       'message',
+    prayer:       'message',
+    answer:       'message',
+    story:        'memory',
+    memory:       'memory',
+    reflection:   'memory',
+    lesson:       'lesson',
+    advice:       'lesson',
+    family_value: 'lesson',
+    wisdom:       'lesson',
+    guidance:     'lesson',
+    encouragement: 'message',
+    journal:      'memory',
+  };
+  return legacyToIntent[raw] ?? 'message';
+}
 
 export const VALUE_TAGS = [
   'Faith', 'Courage', 'Honesty', 'Consistency', 'Optimism',

@@ -7,7 +7,7 @@ import { getBrowserSupabase } from '@/lib/supabase-browser';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { DESCENDENT_ROLES } from '@/lib/roles';
 import { firstName } from '@/lib/nameUtils';
-import { BREADCRUMB_TYPES, VALUE_TAGS } from '@/lib/breadcrumbs';
+import { CAPTURE_INTENT_OPTIONS, VALUE_TAGS, normalizePrefillBreadcrumbType } from '@/lib/breadcrumbs';
 import { formatTagForDisplay } from '@/lib/breadcrumb-tags';
 
 const DRAFT_KEY    = 'breadcrumbs_draft';
@@ -57,7 +57,7 @@ function CaptureFlow() {
   const [profile,             setProfile]            = useState<Profile | null>(null);
   const [familyMembers,       setFamilyMembers]      = useState<FamilyMember[]>([]);
   const [selectedRecipient,   setSelectedRecipient]  = useState<FamilyMember | null>(null);
-  const [breadcrumbType,      setBreadcrumbType]     = useState<string>('letter');
+  const [breadcrumbType,      setBreadcrumbType]     = useState<string>('message');
   const [selectedTags,        setSelectedTags]       = useState<string[]>([]);
   const [showTags,            setShowTags]           = useState(false);
   const [promptLoading,       setPromptLoading]      = useState(false);
@@ -110,7 +110,7 @@ function CaptureFlow() {
           setCharCount(prefill.content.length);
           setPrefillRestored(true);
         }
-        if (prefill.breadcrumbType) setBreadcrumbType(prefill.breadcrumbType);
+        if (prefill.breadcrumbType) setBreadcrumbType(normalizePrefillBreadcrumbType(prefill.breadcrumbType));
         localStorage.removeItem(PREFILL_KEY);
         localStorage.removeItem(DRAFT_KEY);
         return;
@@ -357,18 +357,33 @@ function CaptureFlow() {
               </div>
             )}
 
-            {/* Type selector */}
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground uppercase tracking-widest shrink-0">Type</span>
-              <select
-                value={breadcrumbType}
-                onChange={(e) => setBreadcrumbType(e.target.value)}
-                className="bg-transparent border border-border px-3 py-1.5 text-foreground text-xs focus:border-foreground/60 transition rounded-sm outline-none cursor-pointer"
-              >
-                {BREADCRUMB_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
+            {/* What are you leaving? */}
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest">
+                What are you leaving?
+              </p>
+              <div className="space-y-2">
+                {CAPTURE_INTENT_OPTIONS.map((opt) => {
+                  const selected = breadcrumbType === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setBreadcrumbType(opt.value)}
+                      className={`w-full text-left rounded-sm border px-4 py-3 transition ${
+                        selected
+                          ? 'border-foreground bg-card ring-1 ring-foreground/25'
+                          : 'border-border hover:border-foreground/35'
+                      }`}
+                    >
+                      <p className="text-sm text-foreground font-medium tracking-wide">{opt.label}</p>
+                      <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                        {opt.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Prompt */}
