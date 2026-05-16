@@ -89,48 +89,48 @@ function LoginForm() {
 
   return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-sm space-y-8">
-        <div className="text-center space-y-4">
-          <AnimatedWordmark />
+      <div className="w-full max-w-xs space-y-6">
+        <div className="text-center space-y-3">
+          <AnimatedWordmark className="text-5xl font-serif font-light tracking-tight text-foreground sm:text-6xl md:text-7xl" />
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.75, duration: 0.45 }}
-            className="text-sm text-muted-foreground"
+            className="text-xs text-muted-foreground sm:text-sm"
           >
             Sign in to continue
           </motion.p>
         </div>
 
         {sent ? (
-          <div className="text-center space-y-3 py-8">
-            <p className="font-serif text-foreground text-lg">Check your email.</p>
-            <p className="text-sm text-muted-foreground">
+          <div className="text-center space-y-2 py-6">
+            <p className="font-serif text-foreground text-base">Check your email.</p>
+            <p className="text-xs text-muted-foreground sm:text-sm">
               A sign-in link was sent to <span className="text-foreground">{email}</span>.
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <input
               type="email"
               required
               placeholder="Your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-card border border-border px-4 py-3 text-foreground text-sm placeholder:text-muted-foreground focus:border-foreground/60 transition rounded-sm"
+              className="w-full bg-card border border-border px-3 py-2.5 text-foreground text-sm placeholder:text-muted-foreground focus:border-foreground/60 transition rounded-sm"
             />
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-xs text-red-400 sm:text-sm">{error}</p>}
             <button
               type="submit"
               disabled={busy}
-              className="w-full py-3 border border-foreground text-foreground text-sm tracking-wide disabled:opacity-30 hover:bg-foreground hover:text-background transition"
+              className="w-full py-2.5 border border-foreground text-foreground text-xs tracking-wide disabled:opacity-30 hover:bg-foreground hover:text-background transition sm:text-sm"
             >
               {busy ? 'Sending…' : 'Send sign-in link'}
             </button>
           </form>
         )}
 
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-[11px] text-muted-foreground sm:text-xs">
           First time?{' '}
           <a href="/signup" className="underline hover:text-foreground transition">
             Create an account
