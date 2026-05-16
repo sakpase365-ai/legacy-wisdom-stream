@@ -47,19 +47,42 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { content, recipientId, breadcrumb_type: rawType, tags: rawTags, title: rawTitle } =
-    body as {
-      content:         unknown;
-      recipientId?:    string | null;
-      breadcrumb_type?: unknown;
-      tags?:           unknown;
-      title?:          unknown;
-    };
+  const {
+    content: rawContent,
+    recipientId,
+    breadcrumb_type: rawType,
+    tags: rawTags,
+    title: rawTitle,
+    contentType: rawContentType,
+    mediaUrl: rawMediaUrl,
+  } = body as {
+    content:          unknown;
+    recipientId?:     string | null;
+    breadcrumb_type?: unknown;
+    tags?:            unknown;
+    title?:           unknown;
+    contentType?:     unknown;
+    mediaUrl?:        unknown;
+  };
 
-  if (!content || typeof content !== 'string' || !content.trim()) {
+  const isAudioPayload =
+    rawContentType === 'audio'
+    && typeof rawMediaUrl === 'string'
+    && /^https?:\/\//i.test(rawMediaUrl.trim());
+
+  const mediaUrl = isAudioPayload ? rawMediaUrl.trim() : null;
+
+  if (typeof rawContent !== 'string') {
     return NextResponse.json({ error: 'content required' }, { status: 400 });
   }
-  if (content.length > CONTENT_MAX) {
+  let trimmedContent = rawContent.trim();
+  if (!trimmedContent && !mediaUrl) {
+    return NextResponse.json({ error: 'content required' }, { status: 400 });
+  }
+  if (!trimmedContent && mediaUrl) {
+    trimmedContent = 'Voice note — something I want them to hear.';
+  }
+  if (trimmedContent.length > CONTENT_MAX) {
     return NextResponse.json(
       { error: `content too long (max ${CONTENT_MAX} characters)` },
       { status: 400 }
@@ -136,8 +159,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const [tagsResult, followResult] = await Promise.all([
-      tagEntry(content, recipientAge),
-      generateFollowUp(content),
+      tagEntry(trimmedContent, recipientAge),
+      generateFollowUp(trimmedContent),
     ]);
     aiTags = tagsResult;
     followUp = followResult;
@@ -151,7 +174,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const contextual = await generateContextualTags({
-      content,
+      content: trimmedContent,
       breadcrumbType,
       userSuggestedTags: userKebab.length ? userKebab : undefined,
       recipientRelationHint: recipientName ?? undefined,
@@ -173,7 +196,7 @@ export async function POST(req: NextRequest) {
         family_member_id:        validRecipientId,
         author_family_member_id: access.familyMemberId,
         breadcrumb_type:         breadcrumbType,
-        content,
+        content:                 trimmedContent,
         title,
         tags:                    finalTags,
         tag_source:              tagSource,
@@ -188,6 +211,9 @@ export async function POST(req: NextRequest) {
         domain:                  aiTags.domain,
         relevant_age:            aiTags.relevantAge,
         delivery_type:           aiTags.deliveryType,
+        ...(mediaUrl
+          ? { content_type: 'audio' as const, media_url: mediaUrl }
+          : { content_type: 'text' as const, media_url: null }),
       })
       .select('id, created_at, breadcrumb_type, tags, title, tag_source')
       .single();
@@ -196,6 +222,9 @@ export async function POST(req: NextRequest) {
       const detail = bcError?.message ?? 'breadcrumbs insert returned no data';
       const d = detail.toLowerCase();
       const titleMissing = d.includes('title') && (d.includes('column') || d.includes('schema'));
+      const mediaMissing =
+        (d.includes('content_type') || d.includes('media_url'))
+        && (d.includes('column') || d.includes('schema'));
       logger.error('breadcrumbs insert failed', {
         route:    'save-entry POST',
         parentId: access.familyId,
@@ -206,7 +235,9 @@ export async function POST(req: NextRequest) {
         {
           error: titleMissing
               ? 'Database is missing the title column. Run supabase_breadcrumbs_add_title.sql in the Supabase SQL editor, then try again.'
-              : 'Failed to save entry',
+              : mediaMissing
+                ? 'Database is missing media columns. Run supabase_breadcrumbs_add_media.sql in the Supabase SQL editor, then try again.'
+                : 'Failed to save entry',
           detail: process.env.NODE_ENV !== 'production' ? detail : undefined,
         },
         { status: 500 },
@@ -219,7 +250,7 @@ export async function POST(req: NextRequest) {
       .insert({
         parent_id:     access.familyId,
         child_name:    recipientName,
-        content,
+        content:       trimmedContent,
         follow_up:     followUp,
         domain:        aiTags.domain,
         relevant_age:  aiTags.relevantAge,

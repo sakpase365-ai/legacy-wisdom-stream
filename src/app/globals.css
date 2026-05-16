@@ -61,3 +61,21 @@ textarea {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
+
+/* Wordmark on /, /login, /signup, invites — CSS animation (reliable vs JS motion in prod) */
+@keyframes wordmark-dot-pulse {
+  0%, 100% { opacity: 0.38; }
+  50% { opacity: 1; }
+}
+
+.wordmark-dot {
+  display: inline-block;
+  animation: wordmark-dot-pulse 1.75s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordmark-dot {
+    animation: none;
+    opacity: 0.55;
+  }
+}

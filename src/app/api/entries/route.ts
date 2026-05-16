@@ -26,7 +26,7 @@ export async function GET() {
   const { data, error } = await db
     .from('breadcrumbs')
     .select(
-      'id, title, summary, domain, relevant_age, delivery_type, breadcrumb_type, tags, content, created_at, delivered_at, author_family_member_id, recipient:family_members!family_member_id(name), author:family_members!author_family_member_id(name)'
+      'id, title, summary, domain, relevant_age, delivery_type, breadcrumb_type, tags, content, content_type, media_url, created_at, delivered_at, author_family_member_id, recipient:family_members!family_member_id(name), author:family_members!author_family_member_id(name)'
     )
     .eq('parent_id', access.familyId)
     .order('created_at', { ascending: false });
@@ -60,6 +60,8 @@ export async function GET() {
       breadcrumb_type:         row.breadcrumb_type,
       tags:                    row.tags ?? [],
       content:                 row.content,
+      content_type:            (row as { content_type?: string | null }).content_type ?? 'text',
+      media_url:               (row as { media_url?: string | null }).media_url ?? null,
       created_at:              row.created_at,
       delivered_at:            row.delivered_at,
       recipient_name:          recipientName,

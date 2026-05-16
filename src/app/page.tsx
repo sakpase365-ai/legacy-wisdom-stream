@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { getBrowserSupabase } from '@/lib/supabase-browser';
+import AnimatedWordmark from '@/components/AnimatedWordmark';
 import TypewriterText from '@/components/TypewriterText';
 
 type AuthState = 'loading' | 'unauthenticated' | 'authenticated';
@@ -49,27 +50,7 @@ export default function Home() {
       <div className="flex flex-col items-center text-center space-y-8">
 
         {/* Wordmark */}
-        <h1 className="text-5xl font-serif font-light tracking-tight text-foreground sm:text-6xl md:text-7xl">
-          <TypewriterText text="Breadcrumbs" speed={0.1} showCursor={false} />
-          <span className="inline-flex">
-            {[0, 1, 2].map((i) => (
-              <motion.span
-                key={i}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0, 1, 1, 0.4, 1] }}
-                transition={{
-                  delay: 1.1 + i * 0.3,
-                  duration: 2,
-                  times: [0, 0.1, 0.5, 0.75, 1],
-                  repeat: Infinity,
-                  repeatDelay: 0.5,
-                }}
-              >
-                .
-              </motion.span>
-            ))}
-          </span>
-        </h1>
+        <AnimatedWordmark className="text-5xl font-serif font-light tracking-tight text-foreground sm:text-6xl md:text-7xl" />
 
         {/* Tagline */}
         <p className="max-w-md text-base font-light text-muted-foreground sm:text-lg">

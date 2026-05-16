@@ -2,6 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { motion } from 'framer-motion';
+import AnimatedWordmark from '@/components/AnimatedWordmark';
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -88,9 +90,16 @@ function LoginForm() {
   return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="font-serif text-3xl text-foreground">Breadcrumbs</h1>
-          <p className="text-sm text-muted-foreground">Sign in to continue</p>
+        <div className="text-center space-y-4">
+          <AnimatedWordmark />
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.75, duration: 0.45 }}
+            className="text-sm text-muted-foreground"
+          >
+            Sign in to continue
+          </motion.p>
         </div>
 
         {sent ? (

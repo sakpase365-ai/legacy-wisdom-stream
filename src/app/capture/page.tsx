@@ -51,6 +51,21 @@ async function fetchPrompt(recipientId: string | null, excludePriorPrompts?: str
   return prompt as string;
 }
 
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const s = r.result as string;
+      const i = s.indexOf(',');
+      resolve(i >= 0 ? s.slice(i + 1) : s);
+    };
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+type CaptureMode = 'write' | 'record_audio' | null;
+
 function CaptureFlow() {
   const router = useRouter();
 
@@ -77,8 +92,100 @@ function CaptureFlow() {
   const [charCount,           setCharCount]          = useState(0);
   const [draftRestored,       setDraftRestored]      = useState(false);
   const [prefillRestored,     setPrefillRestored]    = useState(false);
+  const [captureMode,         setCaptureMode]        = useState<CaptureMode>(null);
+  const [showAiPrompt,        setShowAiPrompt]       = useState(false);
+  const [audioBlob,           setAudioBlob]          = useState<Blob | null>(null);
+  const [audioPreviewUrl,     setAudioPreviewUrl]    = useState<string | null>(null);
+  const [recording,           setRecording]          = useState(false);
+  const [recordError,         setRecordError]        = useState('');
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recentPromptsRef = useRef<string[]>([]);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const audioObjectUrlRef = useRef<string | null>(null);
+
+  useEffect(() => () => {
+    if (audioObjectUrlRef.current) URL.revokeObjectURL(audioObjectUrlRef.current);
+  }, []);
+
+  function cleanupAudio() {
+    if (audioObjectUrlRef.current) {
+      URL.revokeObjectURL(audioObjectUrlRef.current);
+      audioObjectUrlRef.current = null;
+    }
+    try {
+      const mr = mediaRecorderRef.current;
+      if (mr && mr.state !== 'inactive') mr.stop();
+    } catch { /* noop */ }
+    mediaRecorderRef.current = null;
+    audioChunksRef.current = [];
+    setAudioBlob(null);
+    setAudioPreviewUrl(null);
+    setRecording(false);
+  }
+
+  function selectWriteMode() {
+    cleanupAudio();
+    setCaptureMode('write');
+    setRecordError('');
+  }
+
+  function selectRecordMode() {
+    setEntry('');
+    setCharCount(0);
+    localStorage.removeItem(DRAFT_KEY);
+    cleanupAudio();
+    setCaptureMode('record_audio');
+    setRecordError('');
+  }
+
+  async function startRecording() {
+    setRecordError('');
+    if (typeof MediaRecorder === 'undefined') {
+      setRecordError('Voice recording is not available in this browser. Try Write or Chrome.');
+      return;
+    }
+    if (recording && mediaRecorderRef.current) {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch { /* noop */ }
+    }
+    cleanupAudio();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : '';
+      const mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      mr.ondataavailable = (ev) => {
+        if (ev.data.size) audioChunksRef.current.push(ev.data);
+      };
+      mr.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: mr.mimeType || 'audio/webm' });
+        setAudioBlob(blob);
+        if (audioObjectUrlRef.current) URL.revokeObjectURL(audioObjectUrlRef.current);
+        const u = URL.createObjectURL(blob);
+        audioObjectUrlRef.current = u;
+        setAudioPreviewUrl(u);
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+    } catch {
+      setRecordError('Microphone access was denied or recording is not supported here.');
+    }
+  }
+
+  function stopRecording() {
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.state !== 'inactive') mr.stop();
+    mediaRecorderRef.current = null;
+    setRecording(false);
+  }
 
   function excludePriorPromptsForFetch(currentPrompt: string): string[] | undefined {
     const seen  = new Set<string>();
@@ -109,6 +216,7 @@ function CaptureFlow() {
           setEntry(prefill.content);
           setCharCount(prefill.content.length);
           setPrefillRestored(true);
+          setCaptureMode('write');
         }
         if (prefill.breadcrumbType) setBreadcrumbType(normalizePrefillBreadcrumbType(prefill.breadcrumbType));
         localStorage.removeItem(PREFILL_KEY);
@@ -122,6 +230,7 @@ function CaptureFlow() {
       setEntry(saved);
       setCharCount(saved.length);
       setDraftRestored(true);
+      setCaptureMode('write');
     }
   }, []);
 
@@ -135,12 +244,7 @@ function CaptureFlow() {
         const { profile: p, familyMembers: fm } = await profileRes.json();
         setProfile(p);
         setFamilyMembers(fm ?? []);
-
-        const dailyPrompt = await fetchPrompt(null);
-        setPrompt(dailyPrompt);
-        recentPromptsRef.current = [dailyPrompt];
-
-        setStage(localStorage.getItem(DRAFT_KEY) || localStorage.getItem(PREFILL_KEY) ? 'writing' : 'prompted');
+        setStage('prompted');
       } catch {
         setStage('error');
       }
@@ -149,6 +253,7 @@ function CaptureFlow() {
 
   async function handleRecipientSelect(member: FamilyMember | null) {
     setSelectedRecipient(member);
+    if (!showAiPrompt) return;
     setPromptLoading(true);
     try {
       const newPrompt = await fetchPrompt(member?.id ?? null, excludePriorPromptsForFetch(prompt));
@@ -156,6 +261,23 @@ function CaptureFlow() {
       recentPromptsRef.current = [...recentPromptsRef.current, newPrompt].slice(-8);
     } catch { /* keep existing prompt */ }
     finally { setPromptLoading(false); }
+  }
+
+  async function openAiPromptPanel() {
+    const opening = !showAiPrompt;
+    setShowAiPrompt(opening);
+    if (!opening) return;
+    if (prompt.trim()) return;
+    setPromptLoading(true);
+    try {
+      const p = await fetchPrompt(selectedRecipient?.id ?? null);
+      setPrompt(p);
+      recentPromptsRef.current = [p];
+    } catch {
+      setPrompt('What do you want them to remember?');
+    } finally {
+      setPromptLoading(false);
+    }
   }
 
   async function handleNewPrompt() {
@@ -193,19 +315,55 @@ function CaptureFlow() {
   }
 
   async function handleSave() {
-    if (!entry.trim() || saving) return;
+    const textOk  = captureMode === 'write' && entry.trim().length > 0;
+    const audioOk = captureMode === 'record_audio' && audioBlob;
+    if ((!textOk && !audioOk) || saving) return;
     setSaving(true);
     setSaveError('');
     try {
+      let payload: Record<string, unknown> = {
+        recipientId:     selectedRecipient?.id ?? null,
+        breadcrumb_type: breadcrumbType,
+        tags:            selectedTags,
+      };
+
+      if (captureMode === 'record_audio' && audioBlob) {
+        if (audioBlob.size > 6 * 1024 * 1024) {
+          setSaveError('Recording is too large. Try a shorter clip.');
+          setSaving(false);
+          return;
+        }
+        const b64 = await blobToBase64(audioBlob);
+        const up = await fetch('/api/upload-voice', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ audioBase64: b64, mimeType: audioBlob.type || 'audio/webm' }),
+        });
+        const upData = (await up.json()) as { error?: string; url?: string };
+        if (!up.ok) {
+          const msg =
+            typeof upData.error === 'string'
+              ? upData.error
+              : 'Could not upload recording.';
+          setSaveError(msg);
+          setStage('error');
+          setSaving(false);
+          return;
+        }
+        payload = {
+          ...payload,
+          content:     'Voice note — something I want them to hear.',
+          contentType: 'audio',
+          mediaUrl:    upData.url,
+        };
+      } else {
+        payload = { ...payload, content: entry };
+      }
+
       const res = await fetch('/api/save-entry', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content:         entry,
-          recipientId:     selectedRecipient?.id ?? null,
-          breadcrumb_type: breadcrumbType,
-          tags:            selectedTags,
-        }),
+        body:    JSON.stringify(payload),
       });
       const data = (await res.json()) as { error?: string; detail?: string; breadcrumb?: unknown; followUp?: string };
       if (!res.ok) {
@@ -233,10 +391,6 @@ function CaptureFlow() {
     }
   }
 
-  const recipientLabel = selectedRecipient
-    ? firstName(selectedRecipient.name)
-    : collectiveLabel(familyMembers);
-
   async function saveTagsEdit() {
     if (!savedBreadcrumbId || tagSaving) return;
     const parts = tagDraft
@@ -259,7 +413,11 @@ function CaptureFlow() {
     }
   }
 
-  const hasContent = entry.trim().length > 0;
+  const hasContent =
+    (captureMode === 'write' && entry.trim().length > 0)
+    || (captureMode === 'record_audio' && !!audioBlob);
+
+  const recipientBusy = showAiPrompt && promptLoading;
 
   const doneLine = selectedRecipient
     ? `${firstName(selectedRecipient.name)} will have this when the time is right.`
@@ -296,7 +454,7 @@ function CaptureFlow() {
         {stage === 'loading' && (
           <div className="py-24 text-center">
             <p className="text-muted-foreground text-sm">
-              Preparing today&apos;s prompt
+              Loading
               <span className="inline-flex">
                 {[0, 1, 2].map((i) => (
                   <motion.span
@@ -319,52 +477,90 @@ function CaptureFlow() {
           </div>
         )}
 
-        {/* Prompt + Writing — capture first, classify after there is text */}
+        {/* Action-first capture: write / record, optional AI, then classify when saving */}
         {(stage === 'prompted' || stage === 'writing') && profile && (
           <div className="space-y-6">
             <h1 className="font-serif text-2xl text-foreground tracking-tight sm:text-3xl">
-              Leave a breadcrumb
+              Leave A Breadcrumb
             </h1>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4 rounded-sm border border-border/40 bg-card/20 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/80 mb-1.5">
-                  Today&apos;s prompt
-                </p>
-                {promptLoading
-                  ? <p className="text-muted-foreground/90 text-sm">
-                      Refreshing
-                      <span className="inline-flex">
-                        {[0, 1, 2].map((i) => (
-                          <motion.span
-                            key={i}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: [0, 1, 1, 0.4, 1] }}
-                            transition={{
-                              delay: i * 0.3,
-                              duration: 1.5,
-                              times: [0, 0.1, 0.5, 0.75, 1],
-                              repeat: Infinity,
-                              repeatDelay: 0.5,
-                            }}
-                          >
-                            .
-                          </motion.span>
-                        ))}
-                      </span>
-                    </p>
-                  : <p className="font-serif text-foreground/80 text-base leading-relaxed sm:text-lg">{prompt}</p>
-                }
-              </div>
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => void handleNewPrompt()}
-                disabled={promptLoading}
-                className="shrink-0 self-start text-[10px] uppercase tracking-widest px-2.5 py-1.5 border border-border/60 rounded-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition disabled:opacity-50 disabled:pointer-events-none"
+                onClick={selectWriteMode}
+                className={`px-5 py-2.5 text-sm border rounded-sm transition ${
+                  captureMode === 'write'
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
+                }`}
               >
-                New prompt
+                Write
+              </button>
+              <button
+                type="button"
+                onClick={selectRecordMode}
+                className={`px-5 py-2.5 text-sm border rounded-sm transition ${
+                  captureMode === 'record_audio'
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
+                }`}
+              >
+                Record Audio
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => void openAiPromptPanel()}
+              className="text-xs uppercase tracking-widest px-3 py-2 border border-border/50 rounded-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition w-full sm:w-auto"
+            >
+              {showAiPrompt ? 'Hide AI suggestions' : 'AI Prompt for suggestions'}
+            </button>
+
+            {showAiPrompt && (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4 rounded-sm border border-border/40 bg-card/20 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/80 mb-1.5">
+                    Today&apos;s prompt
+                  </p>
+                  {promptLoading
+                    ? (
+                        <p className="text-muted-foreground/90 text-sm">
+                          Refreshing
+                          <span className="inline-flex">
+                            {[0, 1, 2].map((i) => (
+                              <motion.span
+                                key={i}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: [0, 1, 1, 0.4, 1] }}
+                                transition={{
+                                  delay: i * 0.3,
+                                  duration: 1.5,
+                                  times: [0, 0.1, 0.5, 0.75, 1],
+                                  repeat: Infinity,
+                                  repeatDelay: 0.5,
+                                }}
+                              >
+                                .
+                              </motion.span>
+                            ))}
+                          </span>
+                        </p>
+                      )
+                    : (
+                        <p className="font-serif text-foreground/80 text-base leading-relaxed sm:text-lg">{prompt}</p>
+                      )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleNewPrompt()}
+                  disabled={promptLoading}
+                  className="shrink-0 self-start text-[10px] uppercase tracking-widest px-2.5 py-1.5 border border-border/60 rounded-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  New prompt
+                </button>
+              </div>
+            )}
 
             {draftRestored && (
               <p className="text-xs text-muted-foreground/60">Draft restored.</p>
@@ -373,23 +569,66 @@ function CaptureFlow() {
               <p className="text-xs text-muted-foreground/60">From your Family Foundation.</p>
             )}
 
-            <textarea
-              className="w-full h-64 bg-card border border-border rounded-sm px-5 py-4 text-foreground text-base leading-relaxed placeholder:text-muted-foreground focus:border-foreground/60 transition"
-              placeholder={`Write to ${recipientLabel}…`}
-              value={entry}
-              onChange={(e) => handleEntryChange(e.target.value)}
-            />
+            {captureMode === 'write' && (
+              <textarea
+                className="w-full h-64 bg-card border border-border rounded-sm px-5 py-4 text-foreground text-base leading-relaxed placeholder:text-muted-foreground focus:border-foreground/60 transition"
+                placeholder="Write something you want them to have..."
+                value={entry}
+                onChange={(e) => handleEntryChange(e.target.value)}
+              />
+            )}
+
+            {captureMode === 'record_audio' && (
+              <div className="space-y-3 rounded-sm border border-border/40 bg-card/20 px-4 py-4">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Record something you want them to hear...
+                </p>
+                {recordError ? (
+                  <p className="text-xs text-red-400/90">{recordError}</p>
+                ) : null}
+                {!audioBlob && !recording && (
+                  <button
+                    type="button"
+                    onClick={() => void startRecording()}
+                    className="px-4 py-2 text-sm border border-foreground text-foreground rounded-sm hover:bg-foreground hover:text-background transition"
+                  >
+                    Start recording
+                  </button>
+                )}
+                {recording && (
+                  <button
+                    type="button"
+                    onClick={stopRecording}
+                    className="px-4 py-2 text-sm border border-foreground text-foreground rounded-sm hover:bg-foreground hover:text-background transition"
+                  >
+                    Stop
+                  </button>
+                )}
+                {audioPreviewUrl && !recording && (
+                  <div className="space-y-2">
+                    <audio src={audioPreviewUrl} controls className="w-full max-w-full" />
+                    <button
+                      type="button"
+                      onClick={() => { cleanupAudio(); setRecordError(''); }}
+                      className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border/60 rounded-sm px-2.5 py-1.5"
+                    >
+                      Re-record
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {hasContent && (
               <>
                 {familyMembers.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest">Who is this for?</p>
+                    <p className="text-xs text-muted-foreground">Who is this for?</p>
                     <div className="flex gap-2 flex-wrap">
                       <button
                         type="button"
                         onClick={() => void handleRecipientSelect(null)}
-                        disabled={promptLoading}
+                        disabled={recipientBusy}
                         className={`px-4 py-1.5 text-sm border rounded-sm transition disabled:opacity-50 ${
                           !selectedRecipient
                             ? 'border-foreground bg-foreground text-background'
@@ -403,7 +642,7 @@ function CaptureFlow() {
                           type="button"
                           key={m.id}
                           onClick={() => void handleRecipientSelect(m)}
-                          disabled={promptLoading}
+                          disabled={recipientBusy}
                           className={`px-4 py-1.5 text-sm border rounded-sm transition disabled:opacity-50 ${
                             selectedRecipient?.id === m.id
                               ? 'border-foreground bg-foreground text-background'
@@ -418,7 +657,7 @@ function CaptureFlow() {
                 )}
 
                 <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground uppercase tracking-widest">Save as a</p>
+                  <p className="text-xs text-muted-foreground">Save as a</p>
                   <div className="flex flex-wrap gap-2">
                     {CAPTURE_INTENT_OPTIONS.map((opt) => {
                       const selected = breadcrumbType === opt.value;
@@ -472,7 +711,9 @@ function CaptureFlow() {
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-xs text-muted-foreground">{charCount} characters</span>
+                  <span className="text-xs text-muted-foreground">
+                    {captureMode === 'record_audio' ? 'Voice note ready' : `${charCount} characters`}
+                  </span>
                   <button
                     type="button"
                     onClick={() => void handleSave()}
@@ -682,7 +923,15 @@ function CaptureFlow() {
               <p className="text-muted-foreground text-sm">Check your connection and try again.</p>
             )}
             <button
-              onClick={() => { setSaveError(''); setStage('loading'); setEntry(''); }}
+              onClick={() => {
+                setSaveError('');
+                cleanupAudio();
+                setCaptureMode(null);
+                setShowAiPrompt(false);
+                setEntry('');
+                setCharCount(0);
+                setStage('prompted');
+              }}
               className="mt-4 py-3 px-6 border border-foreground text-foreground text-sm tracking-wide hover:bg-foreground hover:text-background transition"
             >
               Try again

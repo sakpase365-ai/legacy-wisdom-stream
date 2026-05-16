@@ -1,6 +1,7 @@
 import { getServiceClient } from '@/lib/supabase';
 import { hashInviteToken } from '@/lib/invite-token';
 import InviteActions from './InviteActions';
+import AnimatedWordmark from '@/components/AnimatedWordmark';
 
 export const dynamic = 'force-dynamic';
 
@@ -137,8 +138,8 @@ export default async function InvitePage({
     <main className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-sm space-y-8">
 
-        <div className="text-center space-y-2">
-          <h1 className="font-serif text-3xl text-foreground">Breadcrumbs</h1>
+        <div className="text-center space-y-4">
+          <AnimatedWordmark />
           <p className="text-sm text-muted-foreground">Family invitation</p>
         </div>
 

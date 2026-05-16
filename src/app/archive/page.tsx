@@ -27,6 +27,8 @@ interface EntryCard {
   title:           string | null;
   summary:         string;
   content:         string;
+  content_type:    string;
+  media_url:       string | null;
   domain:          string;
   relevant_age:    number;
   delivery_type:   string;
@@ -125,6 +127,8 @@ export default function ArchivePage() {
             {entries.map((e) => {
               const isExpanded = expandedId === e.id;
               const typeLabel  = BREADCRUMB_TYPE_LABEL[e.breadcrumb_type] ?? e.breadcrumb_type;
+              const isAudio    = e.content_type === 'audio' && e.media_url;
+              const hasBody    = !!(e.content?.trim()) || isAudio;
               return (
                 <div key={e.id} className="glass-card px-5 py-4 space-y-3">
 
@@ -135,9 +139,14 @@ export default function ArchivePage() {
                   <p className="text-foreground text-base leading-relaxed">{e.summary}</p>
 
                   {/* Full letter */}
-                  {isExpanded && e.content && (
-                    <div className="border-t border-border pt-4 mt-1">
-                      <p className="text-foreground text-sm leading-loose whitespace-pre-wrap">{e.content}</p>
+                  {isExpanded && hasBody && (
+                    <div className="border-t border-border pt-4 mt-1 space-y-4">
+                      {isAudio && e.media_url ? (
+                        <audio src={e.media_url} controls className="w-full" preload="metadata" />
+                      ) : null}
+                      {e.content?.trim() ? (
+                        <p className="text-foreground text-sm leading-loose whitespace-pre-wrap">{e.content}</p>
+                      ) : null}
                     </div>
                   )}
 
@@ -182,12 +191,16 @@ export default function ArchivePage() {
                         month: 'long', day: 'numeric', year: 'numeric',
                       })}
                     </p>
-                    {e.content && (
+                    {hasBody && (
                       <button
                         onClick={() => toggleExpand(e.id)}
                         className="text-xs text-muted-foreground hover:text-foreground transition"
                       >
-                        {isExpanded ? 'Hide letter ↑' : 'Read letter ↓'}
+                        {isExpanded
+                          ? 'Hide ↑'
+                          : isAudio
+                            ? 'Listen ↓'
+                            : 'Read letter ↓'}
                       </button>
                     )}
                   </div>

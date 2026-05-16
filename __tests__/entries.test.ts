@@ -84,6 +84,8 @@ describe('GET /api/entries', () => {
     expect(entry).toHaveProperty('summary');
     expect(entry).toHaveProperty('domain');
     expect(entry).toHaveProperty('delivery_type');
+    expect(entry.content_type).toBe('text');
+    expect(entry.media_url).toBeNull();
   });
 
   it('returns 404 when profile is not found', async () => {

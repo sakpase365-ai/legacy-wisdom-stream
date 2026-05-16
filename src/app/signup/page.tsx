@@ -3,6 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
+import AnimatedWordmark from '@/components/AnimatedWordmark';
 import {
   PRIMARY_OWNER_ROLES,
   SECONDARY_OWNER_ROLES,
@@ -310,13 +312,19 @@ export default function SignupPage() {
       <div className="w-full max-w-sm space-y-8">
 
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="font-serif text-3xl text-foreground">Breadcrumbs</h1>
-          <p className="text-sm text-muted-foreground">
+        <div className="text-center space-y-4">
+          <AnimatedWordmark />
+          <motion.p
+            key={step}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.35 }}
+            className="text-sm text-muted-foreground"
+          >
             {step === 'account'          && 'Create your account'}
             {step === 'family-profile'   && 'Your family profile'}
             {step === 'members'          && 'Your family'}
-          </p>
+          </motion.p>
         </div>
 
         <Progress current={STEP_INDEX[step]} total={3} />
