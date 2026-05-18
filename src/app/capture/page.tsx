@@ -14,11 +14,6 @@ const DRAFT_KEY   = 'breadcrumbs_draft';
 const PREFILL_KEY = 'breadcrumbs_prefill';
 const HESITATION_MS = 10_000;
 
-const CAPTURE_INSPIRATION_PROMPTS = [
-  'Tell them something you learned too late in life.',
-  'Describe a moment that changed you.',
-  'Tell them what kind of person matters most.',
-] as const;
 
 interface Profile {
   id:                string;
@@ -125,6 +120,8 @@ function CaptureFlow() {
   const [tagEditorOpen,      setTagEditorOpen]     = useState(false);
   const [tagDraft,           setTagDraft]          = useState('');
   const [tagSaving,          setTagSaving]         = useState(false);
+  const [aiPrompt,           setAiPrompt]          = useState<string | null>(null);
+  const [promptLoading,      setPromptLoading]     = useState(false);
 
   const autosaveTimer      = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hesitationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -290,6 +287,20 @@ function CaptureFlow() {
         setProfile(p);
         setFamilyMembers(fm ?? []);
         setStage('capture');
+        setPromptLoading(true);
+        try {
+          const pr = await fetch('/api/generate-prompt', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ excludePriorPrompts: [] }),
+          });
+          if (pr.ok) {
+            const { prompt } = await pr.json() as { prompt: string };
+            setAiPrompt(prompt);
+          }
+        } catch { /* non-fatal — user can still write freely */ } finally {
+          setPromptLoading(false);
+        }
       } catch {
         setStage('error');
       }
@@ -520,13 +531,29 @@ function CaptureFlow() {
 
         {/* Capture */}
         {stage === 'capture' && profile && (
-          <div className="space-y-4">
+          <div className="space-y-6">
 
-            <div className="flex justify-center">
-              <h1 className="font-serif text-2xl sm:text-3xl text-foreground tracking-tight inline-flex flex-nowrap items-baseline gap-1">
-                <span className="whitespace-nowrap">Leave A Breadcrumb</span>
-                <CaptureTitleThinkingDots />
-              </h1>
+            {/* AI Prompt — the anchor for the session */}
+            <div className="border-y border-border/20 py-8 space-y-3 text-center">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground/40">
+                Today&apos;s prompt
+              </p>
+              {promptLoading ? (
+                <div className="flex justify-center py-1">
+                  <span className="font-serif text-xl text-muted-foreground/30">
+                    <CaptureTitleThinkingDots />
+                  </span>
+                </div>
+              ) : aiPrompt ? (
+                <motion.p
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: hasContent ? 0.5 : 1, y: 0 }}
+                  transition={{ opacity: { duration: 0.35 }, y: { duration: 0.45 } }}
+                  className="font-serif text-2xl sm:text-3xl text-foreground leading-[1.35] max-w-sm mx-auto px-2"
+                >
+                  {aiPrompt}
+                </motion.p>
+              ) : null}
             </div>
 
             {/* Write / Record */}
@@ -544,7 +571,7 @@ function CaptureFlow() {
               <textarea
                 ref={writeAreaRef}
                 className="w-full min-h-[15rem] sm:min-h-[17rem] bg-card/80 border border-border/80 rounded-sm px-5 py-5 text-foreground text-base leading-[1.65] placeholder:text-muted-foreground/50 focus:border-foreground/60 focus:outline-none transition resize-none"
-                placeholder="What do you want them to remember?"
+                placeholder={aiPrompt ? 'Write your response here…' : 'What do you want them to remember?'}
                 value={entry}
                 onChange={onWriteAreaChange}
                 onFocus={() => {
@@ -612,51 +639,6 @@ function CaptureFlow() {
                 )}
               </div>
             )}
-
-            {/* Inspiration — hesitation-driven or manual */}
-            <div className="space-y-1.5">
-              {showHesitationHint && !helpExpanded && (
-                <button
-                  type="button"
-                  onClick={() => { setHelpExpanded(true); setShowHesitationHint(false); }}
-                  className="text-xs text-muted-foreground/75 border-b border-muted-foreground/30 hover:border-foreground/50 hover:text-foreground transition"
-                >
-                  Need inspiration?
-                </button>
-              )}
-              {(!showHesitationHint || helpExpanded) && (
-                <button
-                  type="button"
-                  aria-expanded={helpExpanded}
-                  aria-controls="capture-inspiration-panel"
-                  onClick={() => { setHelpExpanded((v) => !v); setShowHesitationHint(false); }}
-                  className="text-xs text-muted-foreground/90 hover:text-foreground border-b border-transparent hover:border-foreground/25 pb-0.5 transition"
-                >
-                  Need help getting started?
-                </button>
-              )}
-              {helpExpanded && (
-                <div id="capture-inspiration-panel" className="pt-1 pl-1 border-l border-border/30 space-y-1">
-                  {CAPTURE_INSPIRATION_PROMPTS.map((line) => (
-                    <button
-                      key={line}
-                      type="button"
-                      onClick={() => {
-                        if (captureMode === 'write') {
-                          writeAreaRef.current?.focus();
-                          writeAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        } else {
-                          recordSurfaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
-                      }}
-                      className="block w-full text-left text-sm text-foreground/80 leading-snug hover:text-foreground py-1.5 px-1 rounded-sm hover:bg-foreground/5 transition"
-                    >
-                      {line}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
 
             {/* Draft / prefill notices */}
             {(draftRestored || prefillRestored) && (

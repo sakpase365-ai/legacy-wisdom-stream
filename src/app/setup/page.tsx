@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getBrowserSupabase } from '@/lib/supabase-browser';
+import { maskPhone } from '@/lib/phone';
 import {
   PRIMARY_OWNER_ROLES,
   SECONDARY_OWNER_ROLES,
   SECONDARY_OWNER_VALUES,
-  PRIMARY_MEMBER_ROLES,
-  SECONDARY_MEMBER_ROLES,
 } from '@/lib/roles';
 
 const INPUT =
@@ -80,20 +80,19 @@ function OwnerRoleSelector({
   );
 }
 
-interface MemberDraft {
-  localId: string;
-  name: string;
-  role: string;
+interface ChildDraft {
+  localId:   string;
+  name:      string;
   birthDate: string;
 }
 
-function MemberRow({
-  member,
+function ChildCard({
+  child,
   onChange,
   onRemove,
 }: {
-  member: MemberDraft;
-  onChange: (m: MemberDraft) => void;
+  child:    ChildDraft;
+  onChange: (c: ChildDraft) => void;
   onRemove: () => void;
 }) {
   return (
@@ -102,47 +101,27 @@ function MemberRow({
         <input
           type="text"
           placeholder="Name"
-          value={member.name}
-          onChange={(e) => onChange({ ...member, name: e.target.value })}
+          value={child.name}
+          onChange={(e) => onChange({ ...child, name: e.target.value })}
           className="flex-1 bg-card border border-border px-4 py-3 text-foreground text-sm placeholder:text-muted-foreground focus:border-foreground/60 transition rounded-sm outline-none"
         />
         <button
           type="button"
           onClick={onRemove}
-          aria-label="Remove member"
+          aria-label="Remove child"
           className="shrink-0 w-10 h-10 flex items-center justify-center border border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground transition rounded-sm text-base"
         >
           ×
         </button>
       </div>
-
-      <select
-        value={member.role}
-        onChange={(e) => onChange({ ...member, role: e.target.value })}
-        className={SELECT}
-      >
-        <option value="" disabled>Relationship…</option>
-        <optgroup label="Family">
-          {PRIMARY_MEMBER_ROLES.map((r) => (
-            <option key={r.value} value={r.value}>{r.label}</option>
-          ))}
-        </optgroup>
-        <optgroup label="Extended family">
-          {SECONDARY_MEMBER_ROLES.map((r) => (
-            <option key={r.value} value={r.value}>{r.label}</option>
-          ))}
-        </optgroup>
-      </select>
-
-
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground/60">Birthday (optional)</label>
         <input
           type="date"
-          value={member.birthDate}
-          onChange={(e) => onChange({ ...member, birthDate: e.target.value })}
+          value={child.birthDate}
+          onChange={(e) => onChange({ ...child, birthDate: e.target.value })}
           max={new Date().toISOString().split('T')[0]}
-          className={INPUT}
+          className="w-full bg-card border border-border px-4 py-3 text-foreground text-sm focus:border-foreground/60 transition rounded-sm outline-none"
         />
       </div>
     </div>
@@ -153,20 +132,78 @@ function nextLocalId() {
   return `${Date.now()}-${Math.random()}`;
 }
 
-type Step = 'family-profile' | 'members';
+type Step = 'family-profile' | 'members' | 'verify-phone';
 
 export default function SetupPage() {
   const router = useRouter();
 
   const [step, setStep] = useState<Step>('family-profile');
 
-  const [familyName,      setFamilyName]      = useState('');
-  const [ownerName,       setOwnerName]       = useState('');
-  const [ownerRole,       setOwnerRole]       = useState('parent');
-  const [members,         setMembers]         = useState<MemberDraft[]>([]);
+  const [familyName,  setFamilyName]  = useState('');
+  const [ownerName,   setOwnerName]   = useState('');
+  const [ownerRole,   setOwnerRole]   = useState('parent');
+  const [spouseName,  setSpouseName]  = useState('');
+  const [children,    setChildren]    = useState<ChildDraft[]>([]);
+  const [setupPhone,  setSetupPhone]  = useState('');
 
   const [error, setError] = useState('');
   const [busy,  setBusy]  = useState(false);
+
+  const [phoneCode,            setPhoneCode]            = useState('');
+  const [phoneVerifyBusy,      setPhoneVerifyBusy]      = useState(false);
+  const [phoneError,           setPhoneError]           = useState('');
+  const [phoneResendCountdown, setPhoneResendCountdown] = useState(0);
+  const phoneCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => () => {
+    if (phoneCountdownRef.current) clearInterval(phoneCountdownRef.current);
+  }, []);
+
+  function startPhoneCountdown() {
+    setPhoneResendCountdown(30);
+    phoneCountdownRef.current = setInterval(() => {
+      setPhoneResendCountdown((v) => {
+        if (v <= 1) {
+          clearInterval(phoneCountdownRef.current!);
+          phoneCountdownRef.current = null;
+          return 0;
+        }
+        return v - 1;
+      });
+    }, 1000);
+  }
+
+  async function triggerPhoneVerification() {
+    const supabase = getBrowserSupabase();
+    if (!supabase) { router.push('/capture'); return; }
+    const { data: { session } } = await supabase.auth.getSession();
+    const phone = (session?.user?.user_metadata?.phone as string | undefined) ?? '';
+    if (!phone) { router.push('/capture'); return; }
+    setSetupPhone(phone);
+    const { error } = await supabase.auth.updateUser({ phone });
+    if (error) { router.push('/capture'); return; }
+    startPhoneCountdown();
+    setStep('verify-phone');
+  }
+
+  async function verifyPhoneCode(digits: string) {
+    const supabase = getBrowserSupabase();
+    if (!supabase || phoneVerifyBusy) return;
+    setPhoneVerifyBusy(true);
+    setPhoneError('');
+    const { error } = await supabase.auth.verifyOtp({
+      phone: setupPhone,
+      token: digits,
+      type:  'phone_change',
+    });
+    if (error) {
+      setPhoneError("That code didn't match — try again.");
+      setPhoneCode('');
+      setPhoneVerifyBusy(false);
+      return;
+    }
+    router.push('/capture');
+  }
 
   function handleProfileNext(e: React.FormEvent) {
     e.preventDefault();
@@ -178,50 +215,44 @@ export default function SetupPage() {
   async function handleFinalSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-
-    for (const m of members) {
-      if (!m.name.trim()) {
-        setError('Each family member needs a name.');
-        return;
-      }
-      if (!m.role) {
-        setError('Please select a relationship for each family member.');
-        return;
-      }
+    for (const c of children) {
+      if (!c.name.trim()) { setError('Each child needs a name.'); return; }
     }
-
     setBusy(true);
-
     try {
+      const members = [
+        ...(spouseName.trim()
+          ? [{ name: spouseName.trim(), role: 'spouse', customRoleLabel: null, birthDate: null }]
+          : []),
+        ...children.map((c) => ({
+          name:            c.name.trim(),
+          role:            'child',
+          customRoleLabel: null,
+          birthDate:       c.birthDate || null,
+        })),
+      ];
       const res = await fetch('/api/setup', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body:    JSON.stringify({
           ownerName:       ownerName.trim(),
           ownerRole,
           customOwnerRole: null,
           familyName:      familyName.trim() || null,
-          members:         members.map((m) => ({
-            name:              m.name.trim(),
-            role:              m.role,
-            customRoleLabel:   null,
-            birthDate:         m.birthDate || null,
-          })),
+          members,
         }),
       });
-
       if (res.status === 401) { router.push('/login'); return; }
-
       if (!res.ok) {
         const data = await res.json();
         setError(data.error ?? 'Something went wrong. Please try again.');
         setBusy(false);
         return;
       }
-
-      router.push('/capture');
+      await triggerPhoneVerification();
     } catch {
       setError('Could not save your profile. Check your connection.');
+    } finally {
       setBusy(false);
     }
   }
@@ -275,38 +306,56 @@ export default function SetupPage() {
 
         {/* ── Step 2: Members ──────────────────────────────────── */}
         {step === 'members' && (
-          <form onSubmit={handleFinalSubmit} className="space-y-4">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Add the people you&apos;re writing for. You can always add more later.
-            </p>
+          <form onSubmit={(e) => void handleFinalSubmit(e)} className="space-y-6">
+
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest">
+                Spouse / partner
+              </p>
+              <input
+                type="text"
+                placeholder="Their first name (optional)"
+                value={spouseName}
+                onChange={(e) => setSpouseName(e.target.value)}
+                className="w-full bg-card border border-border px-4 py-3 text-foreground text-sm placeholder:text-muted-foreground focus:border-foreground/60 transition rounded-sm outline-none"
+              />
+            </div>
+
+            <div className="border-t border-border/30" />
 
             <div className="space-y-3">
-              {members.map((m, i) => (
-                <MemberRow
-                  key={m.localId}
-                  member={m}
+              <p className="text-xs text-muted-foreground uppercase tracking-widest">
+                Children
+              </p>
+              {children.map((c, i) => (
+                <ChildCard
+                  key={c.localId}
+                  child={c}
                   onChange={(updated) =>
-                    setMembers((prev) => prev.map((x, j) => (j === i ? updated : x)))
+                    setChildren((prev) => prev.map((x, j) => (j === i ? updated : x)))
                   }
                   onRemove={() =>
-                    setMembers((prev) => prev.filter((_, j) => j !== i))
+                    setChildren((prev) => prev.filter((_, j) => j !== i))
                   }
                 />
               ))}
+              <button
+                type="button"
+                onClick={() =>
+                  setChildren((prev) => [
+                    ...prev,
+                    { localId: nextLocalId(), name: '', birthDate: '' },
+                  ])
+                }
+                className="w-full py-3 border border-dashed border-border text-muted-foreground text-sm tracking-wide hover:border-foreground/40 hover:text-foreground transition rounded-sm"
+              >
+                + Add {children.length === 0 ? 'a child' : 'another child'}
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                setMembers((prev) => [
-                  ...prev,
-                  { localId: nextLocalId(), name: '', role: '', birthDate: '' },
-                ])
-              }
-              className="w-full py-3 border border-border text-muted-foreground text-sm tracking-wide hover:border-foreground/40 hover:text-foreground transition"
-            >
-              + Add family member
-            </button>
+            <p className="text-xs text-muted-foreground/60 text-center">
+              You can always add more family members later.
+            </p>
 
             {error && <p className="text-sm text-red-400">{error}</p>}
 
@@ -325,6 +374,61 @@ export default function SetupPage() {
               ← Back
             </button>
           </form>
+        )}
+
+        {/* ── Step 3: Verify phone ─────────────────────────────── */}
+        {step === 'verify-phone' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <h1 className="font-serif text-3xl text-foreground">One last step.</h1>
+              <p className="text-sm text-muted-foreground">
+                {setupPhone
+                  ? `Enter the code we texted to ${maskPhone(setupPhone)}.`
+                  : 'Enter the code we texted to your phone.'}
+              </p>
+            </div>
+
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="one-time-code"
+              placeholder="——————"
+              value={phoneCode}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                setPhoneCode(digits);
+                if (digits.length === 6) void verifyPhoneCode(digits);
+              }}
+              disabled={phoneVerifyBusy}
+              maxLength={6}
+              className="w-full bg-card border border-border px-3 py-3 text-foreground text-2xl text-center tracking-[0.5em] placeholder:text-muted-foreground/30 focus:border-foreground/60 transition rounded-sm outline-none disabled:opacity-50"
+            />
+
+            {phoneError && <p className="text-xs text-red-400 text-center">{phoneError}</p>}
+
+            <div className="flex flex-col items-center gap-2">
+              {phoneResendCountdown > 0 ? (
+                <p className="text-xs text-muted-foreground">Resend in {phoneResendCountdown}s</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void triggerPhoneVerification()}
+                  disabled={phoneVerifyBusy}
+                  className="text-xs text-muted-foreground hover:text-foreground transition disabled:opacity-30"
+                >
+                  Resend code
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => router.push('/capture')}
+                className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition"
+              >
+                Skip for now
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </main>

@@ -12,6 +12,7 @@ import {
   PRIMARY_MEMBER_ROLES,
   SECONDARY_MEMBER_ROLES,
 } from '@/lib/roles';
+import { normalizePhone } from '@/lib/phone';
 
 // ─── Shared style tokens ──────────────────────────────────────
 const INPUT =
@@ -203,6 +204,7 @@ export default function SignupPage() {
 
   // Step 1
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
 
   // Step 2
   const [familyName,      setFamilyName]      = useState('');
@@ -218,6 +220,9 @@ export default function SignupPage() {
   function handleAccountNext(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
+    const normalized = normalizePhone(phone);
+    if (!normalized) { setError('Please enter a valid phone number.'); return; }
+    setError('');
     setStep('family-profile');
   }
 
@@ -253,6 +258,7 @@ export default function SignupPage() {
           email: email.trim(),
           redirectTo: `${window.location.origin}/auth/callback?next=/capture`,
           data: {
+            phone:             normalizePhone(phone) ?? phone.trim(),
             owner_name:        ownerName.trim(),
             owner_role:        ownerRole,
             custom_owner_role: null,
@@ -340,6 +346,21 @@ export default function SignupPage() {
               onChange={(e) => setEmail(e.target.value)}
               className={INPUT}
             />
+            <div className="flex">
+              <span className="flex items-center px-3 border border-r-0 border-border bg-card/50 text-muted-foreground text-sm rounded-l-sm select-none">
+                +1
+              </span>
+              <input
+                type="tel"
+                required
+                autoComplete="tel-national"
+                placeholder="Phone number"
+                value={phone}
+                onChange={(e) => { setPhone(e.target.value); setError(''); }}
+                className="flex-1 bg-card border border-border px-4 py-3 text-foreground text-sm placeholder:text-muted-foreground focus:border-foreground/60 transition rounded-r-sm outline-none"
+              />
+            </div>
+            {error && <p className="text-xs text-red-400">{error}</p>}
             <button
               type="submit"
               className="w-full py-3 border border-foreground text-foreground text-sm tracking-wide hover:bg-foreground hover:text-background transition"

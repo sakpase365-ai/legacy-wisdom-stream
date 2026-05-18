@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { getBrowserSupabase } from '@/lib/supabase-browser';
 import AnimatedWordmark from '@/components/AnimatedWordmark';
 import TypewriterText from '@/components/TypewriterText';
@@ -10,6 +11,7 @@ import TypewriterText from '@/components/TypewriterText';
 type AuthState = 'loading' | 'unauthenticated' | 'authenticated';
 
 export default function Home() {
+  const router = useRouter();
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [foundationComplete, setFoundationComplete] = useState(false);
 
@@ -26,24 +28,10 @@ export default function Home() {
         setAuthState('unauthenticated');
         return;
       }
-
-      try {
-        const res = await fetch('/api/foundation');
-        if (res.ok) {
-          const { answers } = await res.json() as {
-            answers: Record<string, { content: string } | null>;
-          };
-          const answeredCount = Object.values(answers).filter(
-            (v) => v?.content?.trim()
-          ).length;
-          setFoundationComplete(answeredCount >= 6);
-        }
-      } catch {
-        // non-fatal — show setup prompt by default
-      }
-      setAuthState('authenticated');
+      // Authenticated users go directly to capture
+      router.push('/capture');
     })();
-  }, []);
+  }, [router]);
 
   return (
     <main className="min-h-screen w-full bg-background flex flex-col items-center justify-center px-4 py-8">
