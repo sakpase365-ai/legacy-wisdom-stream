@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getBrowserSupabase } from '@/lib/supabase-browser';
+import { maskPhone } from '@/lib/phone';
 import {
   PRIMARY_OWNER_ROLES,
   SECONDARY_OWNER_ROLES,
@@ -147,6 +149,62 @@ export default function SetupPage() {
   const [error, setError] = useState('');
   const [busy,  setBusy]  = useState(false);
 
+  const [phoneCode,            setPhoneCode]            = useState('');
+  const [phoneVerifyBusy,      setPhoneVerifyBusy]      = useState(false);
+  const [phoneError,           setPhoneError]           = useState('');
+  const [phoneResendCountdown, setPhoneResendCountdown] = useState(0);
+  const phoneCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => () => {
+    if (phoneCountdownRef.current) clearInterval(phoneCountdownRef.current);
+  }, []);
+
+  function startPhoneCountdown() {
+    setPhoneResendCountdown(30);
+    phoneCountdownRef.current = setInterval(() => {
+      setPhoneResendCountdown((v) => {
+        if (v <= 1) {
+          clearInterval(phoneCountdownRef.current!);
+          phoneCountdownRef.current = null;
+          return 0;
+        }
+        return v - 1;
+      });
+    }, 1000);
+  }
+
+  async function triggerPhoneVerification() {
+    const supabase = getBrowserSupabase();
+    if (!supabase) { router.push('/capture'); return; }
+    const { data: { session } } = await supabase.auth.getSession();
+    const phone = (session?.user?.user_metadata?.phone as string | undefined) ?? '';
+    if (!phone) { router.push('/capture'); return; }
+    setSetupPhone(phone);
+    const { error } = await supabase.auth.updateUser({ phone });
+    if (error) { router.push('/capture'); return; }
+    startPhoneCountdown();
+    setStep('verify-phone');
+  }
+
+  async function verifyPhoneCode(digits: string) {
+    const supabase = getBrowserSupabase();
+    if (!supabase || phoneVerifyBusy) return;
+    setPhoneVerifyBusy(true);
+    setPhoneError('');
+    const { error } = await supabase.auth.verifyOtp({
+      phone: setupPhone,
+      token: digits,
+      type:  'phone_change',
+    });
+    if (error) {
+      setPhoneError("That code didn't match — try again.");
+      setPhoneCode('');
+      setPhoneVerifyBusy(false);
+      return;
+    }
+    router.push('/capture');
+  }
+
   function handleProfileNext(e: React.FormEvent) {
     e.preventDefault();
     if (!ownerName.trim() || !ownerRole) return;
@@ -191,7 +249,7 @@ export default function SetupPage() {
         setBusy(false);
         return;
       }
-      setStep('verify-phone');
+      await triggerPhoneVerification();
     } catch {
       setError('Could not save your profile. Check your connection.');
     } finally {
@@ -316,6 +374,61 @@ export default function SetupPage() {
               ← Back
             </button>
           </form>
+        )}
+
+        {/* ── Step 3: Verify phone ─────────────────────────────── */}
+        {step === 'verify-phone' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <h1 className="font-serif text-3xl text-foreground">One last step.</h1>
+              <p className="text-sm text-muted-foreground">
+                {setupPhone
+                  ? `Enter the code we texted to ${maskPhone(setupPhone)}.`
+                  : 'Enter the code we texted to your phone.'}
+              </p>
+            </div>
+
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="one-time-code"
+              placeholder="——————"
+              value={phoneCode}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                setPhoneCode(digits);
+                if (digits.length === 6) void verifyPhoneCode(digits);
+              }}
+              disabled={phoneVerifyBusy}
+              maxLength={6}
+              className="w-full bg-card border border-border px-3 py-3 text-foreground text-2xl text-center tracking-[0.5em] placeholder:text-muted-foreground/30 focus:border-foreground/60 transition rounded-sm outline-none disabled:opacity-50"
+            />
+
+            {phoneError && <p className="text-xs text-red-400 text-center">{phoneError}</p>}
+
+            <div className="flex flex-col items-center gap-2">
+              {phoneResendCountdown > 0 ? (
+                <p className="text-xs text-muted-foreground">Resend in {phoneResendCountdown}s</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void triggerPhoneVerification()}
+                  disabled={phoneVerifyBusy}
+                  className="text-xs text-muted-foreground hover:text-foreground transition disabled:opacity-30"
+                >
+                  Resend code
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => router.push('/capture')}
+                className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition"
+              >
+                Skip for now
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </main>
