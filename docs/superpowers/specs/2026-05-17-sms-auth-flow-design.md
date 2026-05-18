@@ -39,13 +39,18 @@ The fix: replace email magic links with SMS OTP for all logins, collect phone at
 
 ### New user (signup)
 
-1. User hits `/signup` → collects: full name, family name, email, phone number
-2. Supabase `signInWithOtp({ email })` sends magic link to email (existing approach)
+1. User hits `/signup` → collects: full name, family name, **email** (account creation), **phone number**
+2. Supabase `signInWithOtp({ email })` sends magic link to email
 3. User clicks email link → `/auth/callback` → `/setup`
-4. During or immediately after `/setup`, app calls `supabase.auth.updateUser({ phone })`
-5. Supabase automatically sends a phone verification SMS
-6. User verifies phone → phone attached to auth account
-7. All future logins use phone OTP — email is never used again after account creation
+4. **Setup Step 1:** Family name, their first name, their role in the family
+5. **Setup Step 2 (redesigned):** Two named sections:
+   - **Spouse / partner** — single name field, optional
+   - **Children** — card-per-child, name + birthday (optional), add/remove cards
+6. After Step 2 completes → app calls `supabase.auth.updateUser({ phone })` → Supabase sends verification SMS
+7. User enters SMS code → phone attached to auth account → redirect to `/capture`
+8. All future logins use phone OTP — email is never used again after account creation
+
+**Setup Step 2 UI note:** Section labels (`SPOUSE / PARTNER`, `CHILDREN`) make purpose explicit. Generic relationship dropdown removed for this step — spouse and children are the primary family for MVP. Extended family can be added later from family management. Color treatment to be finalized during UI polish pass.
 
 ### Authenticated user on home
 
@@ -95,7 +100,7 @@ await supabase.auth.verifyOtp({ phone: '+1xxxxxxxxxx', token: '123456', type: 'p
 | `src/app/signup/page.tsx` | Add phone number field; keep email for account creation |
 | `src/app/page.tsx` | Add authenticated redirect to `/capture` |
 | `src/app/api/send-magic-link/` | Retired — SMS send/verify is fully client-side |
-| `src/app/setup/page.tsx` | After setup completes, call `updateUser({ phone })` + verify OTP |
+| `src/app/setup/page.tsx` | Redesign Step 2: spouse field + children cards; add phone verification OTP step after submit |
 | Supabase dashboard | Phone provider, Twilio credentials, JWT expiry |
 
 ### Auth callback
