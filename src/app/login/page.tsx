@@ -1,90 +1,98 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { getBrowserSupabase } from '@/lib/supabase-browser';
 import AnimatedWordmark from '@/components/AnimatedWordmark';
+import { normalizePhone, maskPhone } from '@/lib/phone';
+
+type LoginState = 'phone' | 'code';
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const next = searchParams.get('next') ?? '/capture';
-  const [email, setEmail]     = useState('');
-  const [sent,  setSent]      = useState(false);
-  const [error, setError]     = useState('');
-  const [busy,  setBusy]      = useState(false);
+  const router       = useRouter();
+  const next         = searchParams.get('next') ?? '/capture';
+
+  const [loginState,        setLoginState]        = useState<LoginState>('phone');
+  const [phone,             setPhone]             = useState('');
+  const [normalizedPhone,   setNormalizedPhone]   = useState('');
+  const [code,              setCode]              = useState('');
+  const [error,             setError]             = useState('');
+  const [busy,              setBusy]              = useState(false);
+  const [resendCountdown,   setResendCountdown]   = useState(0);
+  const [sendFailCount,     setSendFailCount]     = useState(0);
+  const [showEmailFallback, setShowEmailFallback] = useState(false);
+
+  const codeInputRef  = useRef<HTMLInputElement>(null);
+  const countdownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    const err     = searchParams.get('error');
-    const msgParam = searchParams.get('msg');
+    if (loginState === 'code') requestAnimationFrame(() => codeInputRef.current?.focus());
+  }, [loginState]);
 
-    if (err === 'link_error') {
-      let body = 'That link has expired or was already used. Request a new one.';
-      if (msgParam) {
-        try {
-          const decoded = decodeURIComponent(msgParam);
-          if (decoded.length > 0 && decoded.length < 240 && !/[<>]/.test(decoded)) {
-            body = decoded;
-          }
-        } catch { /* ignore malformed msg */ }
-      }
-      setError(body);
-      return;
-    }
+  useEffect(() => () => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+  }, []);
 
-    if (err === 'missing_code') {
-      setError(
-        'The sign-in link did not include a valid code. Request a new link. If it keeps happening, open the link in the same browser where you requested the email.',
-      );
-      return;
-    }
+  function startResendCountdown() {
+    setResendCountdown(30);
+    countdownRef.current = setInterval(() => {
+      setResendCountdown((v) => {
+        if (v <= 1) { clearInterval(countdownRef.current!); countdownRef.current = null; return 0; }
+        return v - 1;
+      });
+    }, 1000);
+  }
 
-    if (err === 'auth_failed') {
-      setError(
-        'We could not finish sign-in. The link may have expired, already been used, or been opened on another device or browser than where you requested it. Request a new link and open it in the same browser when possible.',
-      );
-      return;
-    }
-
-    if (err) {
-      setError('Sign-in failed. Please try again.');
-    }
-  }, [searchParams]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email.trim() || busy) return;
+  async function sendCode(phoneE164: string) {
     setBusy(true);
     setError('');
-    try {
-      const res = await fetch('/api/send-magic-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email.trim(),
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-        }),
-      });
-      let json: { error?: string } = {};
-      try {
-        json = (await res.json()) as { error?: string };
-      } catch {
-        setError(
-          res.ok
-            ? 'Something went wrong. Please try again.'
-            : `Sign-in request failed (${res.status}). Please try again.`,
-        );
-        return;
-      }
-      if (!res.ok || json.error) {
-        setError(json.error ?? `Request failed (${res.status}). Please try again.`);
-        return;
-      }
-      setSent(true);
-    } catch {
-      setError('Network error. Check your connection and try again.');
-    } finally {
+    const supabase = getBrowserSupabase();
+    if (!supabase) { setError('Auth not available.'); setBusy(false); return; }
+    const { error: err } = await supabase.auth.signInWithOtp({ phone: phoneE164 });
+    if (err) {
+      const count = sendFailCount + 1;
+      setSendFailCount(count);
+      if (count >= 2) setShowEmailFallback(true);
+      setError("We couldn't send a code. Try again.");
       setBusy(false);
+      return;
     }
+    setNormalizedPhone(phoneE164);
+    setLoginState('code');
+    startResendCountdown();
+    setBusy(false);
+  }
+
+  async function handlePhoneSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const normalized = normalizePhone(phone);
+    if (!normalized) { setError('Please enter a valid phone number.'); return; }
+    await sendCode(normalized);
+  }
+
+  async function handleCodeChange(value: string) {
+    const digits = value.replace(/\D/g, '').slice(0, 6);
+    setCode(digits);
+    if (digits.length < 6) return;
+    setBusy(true);
+    setError('');
+    const supabase = getBrowserSupabase();
+    if (!supabase) { setError('Auth not available.'); setBusy(false); return; }
+    const { error: err } = await supabase.auth.verifyOtp({
+      phone: normalizedPhone,
+      token: digits,
+      type:  'sms',
+    });
+    if (err) {
+      setError("That code didn't match — try again.");
+      setCode('');
+      setBusy(false);
+      codeInputRef.current?.focus();
+      return;
+    }
+    router.push(next);
   }
 
   return (
@@ -98,36 +106,88 @@ function LoginForm() {
             transition={{ delay: 0.75, duration: 0.45 }}
             className="text-xs text-muted-foreground sm:text-sm"
           >
-            Sign in to continue
+            {loginState === 'phone' ? 'Sign in to continue' : `Code sent to ${maskPhone(normalizedPhone)}`}
           </motion.p>
         </div>
 
-        {sent ? (
-          <div className="text-center space-y-2 py-6">
-            <p className="font-serif text-foreground text-base">Check your email.</p>
-            <p className="text-xs text-muted-foreground sm:text-sm">
-              A sign-in link was sent to <span className="text-foreground">{email}</span>.
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <input
-              type="email"
-              required
-              placeholder="Your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-card border border-border px-3 py-2.5 text-foreground text-sm placeholder:text-muted-foreground focus:border-foreground/60 transition rounded-sm"
-            />
-            {error && <p className="text-xs text-red-400 sm:text-sm">{error}</p>}
+        {loginState === 'phone' && (
+          <form onSubmit={(e) => void handlePhoneSubmit(e)} className="space-y-3">
+            <div className="flex">
+              <span className="flex items-center px-3 border border-r-0 border-border bg-card/50 text-muted-foreground text-sm rounded-l-sm select-none">
+                +1
+              </span>
+              <input
+                type="tel"
+                required
+                autoComplete="tel-national"
+                placeholder="Phone number"
+                value={phone}
+                onChange={(e) => { setPhone(e.target.value); setError(''); }}
+                className="flex-1 bg-card border border-border px-3 py-2.5 text-foreground text-sm placeholder:text-muted-foreground focus:border-foreground/60 transition rounded-r-sm outline-none"
+              />
+            </div>
+            {error && <p className="text-xs text-red-400">{error}</p>}
             <button
               type="submit"
               disabled={busy}
               className="w-full py-2.5 border border-foreground text-foreground text-xs tracking-wide disabled:opacity-30 hover:bg-foreground hover:text-background transition sm:text-sm"
             >
-              {busy ? 'Sending…' : 'Send sign-in link'}
+              {busy ? 'Sending…' : 'Send code'}
             </button>
+            {showEmailFallback && (
+              <p className="text-center text-xs text-muted-foreground">
+                Having trouble?{' '}
+                <a href="/login-email" className="underline hover:text-foreground transition">
+                  Sign in with email instead
+                </a>
+              </p>
+            )}
           </form>
+        )}
+
+        {loginState === 'code' && (
+          <div className="space-y-4">
+            <input
+              ref={codeInputRef}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="one-time-code"
+              placeholder="——————"
+              value={code}
+              onChange={(e) => void handleCodeChange(e.target.value)}
+              disabled={busy}
+              maxLength={6}
+              className="w-full bg-card border border-border px-3 py-3 text-foreground text-2xl text-center tracking-[0.5em] placeholder:text-muted-foreground/30 focus:border-foreground/60 transition rounded-sm outline-none disabled:opacity-50"
+            />
+            {error && <p className="text-xs text-red-400 text-center">{error}</p>}
+            <div className="flex flex-col items-center gap-2">
+              {resendCountdown > 0 ? (
+                <p className="text-xs text-muted-foreground">Resend in {resendCountdown}s</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void sendCode(normalizedPhone)}
+                  disabled={busy}
+                  className="text-xs text-muted-foreground hover:text-foreground transition disabled:opacity-30"
+                >
+                  Resend code
+                </button>
+              )}
+              {showEmailFallback && (
+                <a href="/login-email" className="text-xs text-muted-foreground hover:text-foreground transition">
+                  Having trouble? Sign in with email instead
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => { setLoginState('phone'); setCode(''); setError(''); }}
+                className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition"
+              >
+                ← Change number
+              </button>
+            </div>
+          </div>
         )}
 
         <p className="text-center text-[11px] text-muted-foreground sm:text-xs">
